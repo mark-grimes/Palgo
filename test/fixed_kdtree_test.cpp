@@ -411,41 +411,6 @@ SCENARIO( "Check that a kdtree subtree iterator works correctly" )
 
 SCENARIO( "Test some kdtree internal functions" )
 {
-	WHEN( "::split is called with even input" )
-	{
-		typedef std::vector< std::pair<float,float> > TestData;
-		TestData input={ {0,0}, {1,1} };
-		auto partitioner=[](const TestData::value_type& point){ return point.first; };
-
-		std::vector<TestData::const_iterator> inputIterators,leftOutput,rightOutput;
-		for( auto iInput=input.begin(); iInput!=input.end(); ++iInput ) inputIterators.push_back(iInput);
-
-		::split( inputIterators, leftOutput, rightOutput, partitioner );
-
-		REQUIRE( leftOutput.size()+rightOutput.size() == input.size() );
-		REQUIRE( leftOutput.size() == rightOutput.size() );
-		REQUIRE( *leftOutput.front() == input.front() ); // input was already sorted
-		REQUIRE( *rightOutput.front() == input.back() );
-	}
-
-	WHEN( "::split is called with odd input" )
-	{
-		typedef std::vector< std::pair<float,float> > TestData;
-		TestData input={ {0,0}, {1,1}, {0.5,3} };
-		auto partitioner=[](const TestData::value_type& point){ return point.first; };
-
-		std::vector<TestData::const_iterator> inputIterators,leftOutput,rightOutput;
-		for( auto iInput=input.begin(); iInput!=input.end(); ++iInput ) inputIterators.push_back(iInput);
-
-		::split( inputIterators, leftOutput, rightOutput, partitioner );
-
-		REQUIRE( leftOutput.size()+rightOutput.size() == input.size() );
-		REQUIRE( leftOutput.size() == rightOutput.size()+1 ); // Always want the odd element on the left
-		REQUIRE( *leftOutput[0] == input[0] );
-		REQUIRE( *leftOutput[1] == input[2] );
-		REQUIRE( *rightOutput[0] == input[1] );
-	}
-
 	GIVEN( "Datatype pairs of floats, partitioned first by 'first' then by 'second'" )
 	{
 		typedef std::vector< std::pair<float,float> > TestData;

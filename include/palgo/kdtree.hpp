@@ -137,17 +137,6 @@ namespace palgo
 
 namespace
 {
-	template<class T_iterator,class T_functor>
-	void split( std::vector<T_iterator>& input, std::vector<T_iterator>& leftOutput, std::vector<T_iterator>& rightOutput, T_functor partitioner )
-	{
-		std::sort( input.begin(), input.end(), [=](T_iterator A, T_iterator B){ return partitioner(*A)<partitioner(*B); } );
-
-		typename std::vector<T_iterator>::iterator iLeftStart=input.begin();
-		typename std::vector<T_iterator>::iterator iLeftEnd=input.end()-input.size()/2;
-		leftOutput.insert( leftOutput.end(), iLeftStart, iLeftEnd );
-		rightOutput.insert( rightOutput.end(), iLeftEnd, input.end() );
-	}
-
 	template<class T_iterIterator,class T_functorIter>
 	void sort_kdelements( const T_iterIterator& inputBegin, const T_iterIterator& inputEnd, const T_functorIter& partitionersBegin, const T_functorIter& partitionersEnd, T_functorIter currentPartitioner )
 	{
