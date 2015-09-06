@@ -47,49 +47,39 @@ namespace
 	}
 
 	/** @brief Dummy class just to automatically pick between std::uniform_real_distribution and std::uniform_int_distribution */
-	template<class T>
-	class MyDistribution
-	{
-	public:
-		MyDistribution( T low, T high ) : distribution(low,high) {}
-		std::uniform_real_distribution<T> distribution;
-		const int precisionLimit=3;
-	};
-
-	/** @brief Dummy class just to automatically pick between std::uniform_real_distribution and std::uniform_int_distribution */
-	template<>
-	class MyDistribution<int>
-	{
-	public:
-		MyDistribution( int low, int high ) : distribution(low,high) {}
-		std::uniform_int_distribution<int> distribution;
-		const int precisionLimit=-1;
-	};
+	template<class T> struct uniform_auto_distribution{ typedef std::uniform_real_distribution<T> type; static const int precisionLimit=3; static constexpr T defaultLow=-5; static constexpr T defaultHigh=5; };
+	template<> struct uniform_auto_distribution<int>{ typedef std::uniform_int_distribution<int> type; static const int precisionLimit=-1; static constexpr int defaultLow=-5; static constexpr int defaultHigh=5; };
+	template<> struct uniform_auto_distribution<size_t>{ typedef std::uniform_int_distribution<size_t> type; static const int precisionLimit=-1; static constexpr size_t defaultLow=0; static constexpr size_t defaultHigh=5; };
 
 	/** @brief Prints an initialiser list of the given length.
 	 *
 	 * I Just use this to copy and paste into the hard coded test values. Not used for actual testing.
 	 */
 	template<class T>
-	void printRandomInitialiserList( size_t length, size_t rank, T low=-5, T high=5, std::ostream& output=std::cout )
+	void printRandomInitialiserList( size_t length, size_t rank, T low, T high, std::ostream& output=std::cout )
 	{
 		std::default_random_engine engine;
-		//std::uniform_real_distribution<T> random( low, high );
-		MyDistribution<T> random(low,high);
+		typename uniform_auto_distribution<T>::type random(low,high);
 		output << "TestData data={ ";
 		for( size_t index=0; index<length; ++index )
 		{
 			if( index!=0 ) output << ", ";
 			if( rank>1 ) output << "{";
-			if( random.precisionLimit>0 ) output << std::setprecision(random.precisionLimit);
+			if( uniform_auto_distribution<T>::precisionLimit>0 ) output << std::setprecision(uniform_auto_distribution<T>::precisionLimit);
 			for( size_t rankIndex=0; rankIndex<rank; ++rankIndex )
 			{
 				if( rankIndex!=0 ) output << ",";
-				output << random.distribution(engine);
+				output << random(engine);
 			}
 			if( rank>1 ) output << "}";
 		}
 		output << " };\n";
+	}
+
+	template<class T>
+	void printRandomInitialiserList( size_t length, size_t rank, std::ostream& output=std::cout )
+	{
+		printRandomInitialiserList<T>( length, rank, uniform_auto_distribution<T>::defaultLow, uniform_auto_distribution<T>::defaultHigh, std::cout );
 	}
 
 	std::ostream& operator<<( std::ostream& output, const std::pair<float,float>& item )
@@ -652,6 +642,9 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 
 		WHEN( "Searching for datapoints with approximate matches" )
 		{
+			printRandomInitialiserList<int>( 3,2 );
+			printRandomInitialiserList<size_t>( 3,2 );
+			printRandomInitialiserList<float>( 3,2 );
 			auto iNearest=myTree.nearest_neighbour( std::make_pair(41,49) );
 			CHECK( iNearest->first == 40 );
 			CHECK( iNearest->second == 49 );
