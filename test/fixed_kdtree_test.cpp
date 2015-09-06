@@ -640,59 +640,17 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 
 		WHEN( "Searching for datapoints that exactly match the input finds the correct point" )
 		{
-			//
-			// This first set should find exact matches at each of the lowest nodes of the tree
-			//
-			auto iNearest=myTree.nearest_neighbour( std::make_pair(142,69) );
-			CHECK( iNearest->first == 142 );
-			CHECK( iNearest->second == 69 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(124,34) );
-			CHECK( iNearest->first == 124 );
-			CHECK( iNearest->second == 34 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(80,88) );
-			CHECK( iNearest->first == 80 );
-			CHECK( iNearest->second == 88 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(194,126) );
-			CHECK( iNearest->first == 194 );
-			CHECK( iNearest->second == 126 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(34,110) );
-			CHECK( iNearest->first == 34 );
-			CHECK( iNearest->second == 110 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(170,76) );
-			CHECK( iNearest->first == 170 );
-			CHECK( iNearest->second == 76 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(168,2) );
-			CHECK( iNearest->first == 168 );
-			CHECK( iNearest->second == 2 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(40,49) );
-			CHECK( iNearest->first == 40 );
-			CHECK( iNearest->second == 49 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(142,96) );
-			CHECK( iNearest->first == 142 );
-			CHECK( iNearest->second == 96 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(131,86) );
-			CHECK( iNearest->first == 131 );
-			CHECK( iNearest->second == 86 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(184,83) );
-			CHECK( iNearest->first == 184 );
-			CHECK( iNearest->second == 83 );
-
-			iNearest=myTree.nearest_neighbour( std::make_pair(57,115) );
-			CHECK( iNearest->first == 57 );
-			CHECK( iNearest->second == 115 );
+			// This just makes sure that all branches of the tree can be traversed down
+			for( const auto& inputPair : input )
+			{
+				INFO( "Checking for exact match of {" << inputPair.first << "," << inputPair.second << "}" );
+				auto iNearest=myTree.nearest_neighbour( inputPair );
+				CHECK( iNearest->first == inputPair.first );
+				CHECK( iNearest->second == inputPair.second );
+			}
 		}
 
-		WHEN( "Searching for datapoints" )
+		WHEN( "Searching for datapoints with approximate matches" )
 		{
 			auto iNearest=myTree.nearest_neighbour( std::make_pair(41,49) );
 			CHECK( iNearest->first == 40 );
@@ -706,8 +664,6 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 			CHECK( iNearest->first == 142 );
 			CHECK( iNearest->second == 69 );
 
-//			dumpTree(myTree);
-//			myTree.verbose_=true;
 			iNearest=myTree.nearest_neighbour( std::make_pair(141,97) );
 			CHECK( iNearest->first == 142 );
 			CHECK( iNearest->second == 96 );
