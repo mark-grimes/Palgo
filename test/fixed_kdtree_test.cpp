@@ -228,7 +228,31 @@ SCENARIO( "Check that the constexpr functions work as expected" )
 		CHECK( palgo::numberOfLevels(63)==6 );
 		CHECK( palgo::numberOfLevels(64)==7 );
 	}
-	WHEN( "Test that constexpr are indeed evaluated at compile time" )
+	WHEN( "Testing constexpr partitionerIndex function" )
+	{
+		CHECK( palgo::partitionerIndex(0,1)==0 );
+		CHECK( palgo::partitionerIndex(1,1)==0 );
+		CHECK( palgo::partitionerIndex(2,1)==0 );
+		CHECK( palgo::partitionerIndex(3,1)==0 );
+
+		CHECK( palgo::partitionerIndex(0,3)==0 );
+		CHECK( palgo::partitionerIndex(1,3)==1 );
+		CHECK( palgo::partitionerIndex(2,3)==2 );
+		CHECK( palgo::partitionerIndex(3,3)==0 );
+		CHECK( palgo::partitionerIndex(4,3)==1 );
+		CHECK( palgo::partitionerIndex(5,3)==2 );
+		CHECK( palgo::partitionerIndex(6,3)==0 );
+		CHECK( palgo::partitionerIndex(7,3)==1 );
+		CHECK( palgo::partitionerIndex(8,3)==2 );
+		CHECK( palgo::partitionerIndex(9,3)==0 );
+
+		CHECK( palgo::partitionerIndex(0,4)==0 );
+		CHECK( palgo::partitionerIndex(1,4)==1 );
+		CHECK( palgo::partitionerIndex(2,4)==2 );
+		CHECK( palgo::partitionerIndex(3,4)==3 );
+		CHECK( palgo::partitionerIndex(4,4)==0 );
+	}
+	WHEN( "Test that the constexpr functions are indeed evaluated at compile time" )
 	{
 		// template arguments must be resolved at compile time, so these force
 		// a check that the functions are actually staticly calculated. If not
@@ -236,6 +260,7 @@ SCENARIO( "Check that the constexpr functions work as expected" )
 		std::array<char,palgo::numberOfElements(3)> temp1;
 		std::array<char,palgo::numberOfElementsInLevel(3)> temp2;
 		std::array<char,palgo::numberOfLevels(3)> temp3;
+		std::array<char,palgo::partitionerIndex(2,3)> temp4;
 	}
 }
 
@@ -347,7 +372,7 @@ SCENARIO( "Check that a kdtree can be traversed properly" )
 
 SCENARIO( "Check that a kdtree subtree iterator works correctly" )
 {
-	GIVEN( "A tree of (x) points" )
+	GIVEN( "A tree of (x,y) points" )
 	{
 		typedef std::vector< std::pair<int,int> > TestData;
 		TestData input={ {142,69}, {124,34}, {80,88}, {194,126}, {34,110},
@@ -359,7 +384,6 @@ SCENARIO( "Check that a kdtree subtree iterator works correctly" )
 		partitioners.push_back( [](const TestData::value_type& point){ return point.second; } );
 
 		auto myTree=palgo::make_fixed_kdtree( input.begin(), input.end(), partitioners );
-		dumpTree( myTree );
 
 		WHEN( "Searching for datapoints" )
 		{
@@ -614,7 +638,59 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 
 		auto myTree=palgo::make_fixed_kdtree( input.begin(), input.end(), partitioners );
 
-		//dumpTree(myTree);
+		WHEN( "Searching for datapoints that exactly match the input finds the correct point" )
+		{
+			//
+			// This first set should find exact matches at each of the lowest nodes of the tree
+			//
+			auto iNearest=myTree.nearest_neighbour( std::make_pair(142,69) );
+			CHECK( iNearest->first == 142 );
+			CHECK( iNearest->second == 69 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(124,34) );
+			CHECK( iNearest->first == 124 );
+			CHECK( iNearest->second == 34 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(80,88) );
+			CHECK( iNearest->first == 80 );
+			CHECK( iNearest->second == 88 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(194,126) );
+			CHECK( iNearest->first == 194 );
+			CHECK( iNearest->second == 126 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(34,110) );
+			CHECK( iNearest->first == 34 );
+			CHECK( iNearest->second == 110 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(170,76) );
+			CHECK( iNearest->first == 170 );
+			CHECK( iNearest->second == 76 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(168,2) );
+			CHECK( iNearest->first == 168 );
+			CHECK( iNearest->second == 2 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(40,49) );
+			CHECK( iNearest->first == 40 );
+			CHECK( iNearest->second == 49 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(142,96) );
+			CHECK( iNearest->first == 142 );
+			CHECK( iNearest->second == 96 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(131,86) );
+			CHECK( iNearest->first == 131 );
+			CHECK( iNearest->second == 86 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(184,83) );
+			CHECK( iNearest->first == 184 );
+			CHECK( iNearest->second == 83 );
+
+			iNearest=myTree.nearest_neighbour( std::make_pair(57,115) );
+			CHECK( iNearest->first == 57 );
+			CHECK( iNearest->second == 115 );
+		}
 
 		WHEN( "Searching for datapoints" )
 		{
@@ -630,6 +706,8 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 			CHECK( iNearest->first == 142 );
 			CHECK( iNearest->second == 69 );
 
+//			dumpTree(myTree);
+//			myTree.verbose_=true;
 			iNearest=myTree.nearest_neighbour( std::make_pair(141,97) );
 			CHECK( iNearest->first == 142 );
 			CHECK( iNearest->second == 96 );
