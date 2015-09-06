@@ -25,14 +25,14 @@ namespace palgo
 		{
 			for( ; iBegin!=iEnd; ++iBegin ) items_.emplace_back( *iBegin );
 		}
-		void testMethod()
+		std::vector<float> testMethod()
 		{
-	//		std::cout << "argument is " << std::get<0>(partitioners_) << std::endl;
-			std::cout << "Function gives ";
-			for( const auto& element : items_ ) std::cout << std::get<0>(partitioners_)(element) << ", ";
-			std::cout << std::endl;
-			for( size_t index=0; index<partitioners_.size(); ++index ) std::cout << partitioners_[index](items_.front()) << ", ";
-			std::cout << std::endl;
+			std::vector<float> returnValue;
+			for( size_t index=0; index<items_.size(); ++index )
+			{
+				returnValue.push_back( partitioners_[index%partitioners_.size()](items_[index]) );
+			}
+			return returnValue;
 		}
 	private:
 		std::vector<T_data> items_;
@@ -64,9 +64,9 @@ namespace palgo
 		{
 			for( ; iBegin!=iEnd; ++iBegin ) items_.emplace_back( *iBegin );
 		}
-		void testMethod()
+		bool testMethod()
 		{
-			std::cout << "blah" << std::endl;
+			return true;
 		}
 	private:
 		std::vector<T_data> items_;
