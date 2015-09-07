@@ -3,9 +3,7 @@
 
 #include <vector>
 #include <cmath>
-
-// TODO remove once fully tested
-#include <iostream>
+#include <functional>
 
 namespace palgo
 {
@@ -64,13 +62,6 @@ namespace palgo
 		public:
 			Iterator( typename container_type::const_iterator leftLimit, typename container_type::const_iterator rightLimit, const container_type& container )
 				: container_(container), subTreeFarLeft_(leftLimit), subTreeFarRight_(rightLimit) { setIterator(); }
-			void dumpPosition( std::string prefix="" )
-			{
-				std::cout << prefix << "(" << *subTreeFarLeft_ << ","
-						<< *iterator_ << ",";
-				if( subTreeFarRight_==container_.end() ) std::cout << "*" << ")\n";
-				else std::cout << *subTreeFarRight_ << ")\n";
-			}
 		private:
 			inline void setIterator() { iterator_=subTreeFarLeft_+std::distance(subTreeFarLeft_,subTreeFarRight_)/2; }
 			inline Iterator current() { return subTreeFarLeft_+std::distance(subTreeFarLeft_,subTreeFarRight_)/2; }
@@ -93,8 +84,6 @@ namespace palgo
 		Iterator nearest_neighbour( value_type );
 		Iterator lowest_neighbour( value_type );
 		typename T_functor::result_type distance_squared( value_type pointA, value_type pointB );
-
-		bool verbose_; // TODO - remove this
 	private:
 		std::pair<Iterator,typename T_functor::result_type> nearest_neighbour_subSearch( value_type searchData, Iterator iSubTree, typename std::vector<T_functor>::const_iterator iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> currentBest );
 		std::vector<typename T_iterator::value_type> data_;
@@ -177,7 +166,7 @@ namespace
 
 template<class T_iterator,class T_functor>
 palgo::fixed_kdtree<T_iterator,T_functor>::fixed_kdtree( T_iterator begin, T_iterator end, std::vector<T_functor> partitioners )
-	: partitioners_(partitioners), verbose_(false)
+	: partitioners_(partitioners)
 {
 	if( partitioners.empty() ) throw std::runtime_error("palgo::fixed_kdtree constructed with empty partitioners");
 
@@ -211,18 +200,10 @@ palgo::fixed_kdtree<T_iterator,std::function<typename T_iterator::value_type(con
 }
 
 
-// TODO - remove this once testing finished
-std::ostream& operator<<( std::ostream& output, const std::pair<float,float>& item )
-{
-	output << "{" << item.first << "," << item.second << "}";
-	return output;
-}
-
 template<class T_iterator,class T_functor>
 typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint )
 {
 	typedef typename T_functor::result_type T_distance;
-	if( verbose_ ) std::cout << "Starting nearest neighbour search for " << datapoint << std::endl;
 
 	// Just want any valid initial value for "bestMatch" so that I can delegate to the subSearch function.
 	// For now use the root node and let subSearch find the nearer point.
@@ -242,11 +223,9 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 
 	std::vector<bool> isLeftChild;
 
-	if( verbose_ ) std::cout << "Starting traversal at point " << *iCurrent << " with partitioner " << std::distance(const_cast<const palgo::fixed_kdtree<T_iterator,T_functor>*>(this)->partitioners_.begin(),iCurrentPartitioner) << " hasParent=" << iCurrent.has_parent() << "\n";
 	// Traverse down to the closest bottom level node
 	while( true )
 	{
-		if( verbose_ ) std::cout << "At point " << *iCurrent << " with partitioner " << std::distance(const_cast<const palgo::fixed_kdtree<T_iterator,T_functor>*>(this)->partitioners_.begin(),iCurrentPartitioner) << "\n";
 		if( (*iCurrentPartitioner)(searchData) < (*iCurrentPartitioner)(*iCurrent) )
 		{
 			if( !iCurrent.has_left_child() ) break;
@@ -264,7 +243,6 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 		if( iCurrentPartitioner==partitioners_.end() ) iCurrentPartitioner=partitioners_.begin();
 	}
 
-	if( verbose_ ) std::cout << "Hit bottom of tree at " << *iCurrent << "\n";
 	T_distance distance=distance_squared( searchData, *iCurrent );
 	if( distance<bestMatch.second )
 	{
@@ -279,14 +257,6 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 		if( iCurrentPartitioner==partitioners_.begin() ) iCurrentPartitioner=partitioners_.end();
 		--iCurrentPartitioner;
 
-		if( verbose_ )
-		{
-			std::cout << "At point " << *iCurrent << " with partitioner " << std::distance(const_cast<const palgo::fixed_kdtree<T_iterator,T_functor>*>(this)->partitioners_.begin(),iCurrentPartitioner) << "\n";
-			std::cout << "  isLeftChild=";
-			for( const auto& value : isLeftChild ) std::cout << value << ", ";
-			std::cout << "\n";
-		}
-
 		T_distance distance=distance_squared( searchData, *iCurrent );
 
 		if( distance<bestMatch.second )
@@ -295,7 +265,7 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 			bestMatch.second=distance;
 		}
 
-		auto iOtherSplittingPlane=iCurrent;
+		// Need to check down the other branch to see if there are any points closer
 		if( isLeftChild.back() )
 		{
 			isLeftChild.pop_back();
@@ -312,7 +282,8 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 		++iOtherPlanePartitioner;
 		if( iOtherPlanePartitioner==partitioners_.end() ) iOtherPlanePartitioner=partitioners_.begin();
 
-		if( verbose_ ) std::cout << "Checking partition " << *iCurrent  << " " << std::pow( (*iOtherPlanePartitioner)(*iCurrent)-(*iOtherPlanePartitioner)(searchData), 2 ) << "<" << bestMatch.second << "\n";
+		// See if the splitting plane is within the distance of the current best match. If it
+		// is, need to traverse down that branch as well.
 		if( std::pow( (*iOtherPlanePartitioner)(*iCurrent)-(*iOtherPlanePartitioner)(searchData), 2 )<bestMatch.second )
 		{
 			// If nothing nearer was found, returns the input
@@ -321,7 +292,6 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 		iCurrent.goto_parent();
 	}
 
-	if( verbose_ ) std::cout << "Returning match " << *bestMatch.first  << " " << bestMatch.second << "\n";
 	return bestMatch;
 }
 

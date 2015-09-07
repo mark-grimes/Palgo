@@ -4,6 +4,8 @@
 
 // TODO remove this include
 #include <random>
+// TODO remove this include
+#include <iostream>
 
 //
 // Unnamed namespace for things only used in this file
@@ -642,9 +644,6 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 
 		WHEN( "Searching for datapoints with approximate matches" )
 		{
-			printRandomInitialiserList<int>( 3,2 );
-			printRandomInitialiserList<size_t>( 3,2 );
-			printRandomInitialiserList<float>( 3,2 );
 			auto iNearest=myTree.nearest_neighbour( std::make_pair(41,49) );
 			CHECK( iNearest->first == 40 );
 			CHECK( iNearest->second == 49 );
