@@ -4,6 +4,8 @@
 #include <vector>
 #include <cmath>
 #include <functional>
+#include "palgo/impl/CyclicIterator.hpp"
+
 
 namespace palgo
 {
@@ -82,9 +84,11 @@ namespace palgo
 		Iterator root() const { return Iterator( data_.begin(), data_.end(), data_ ); }
 		Iterator end() const { return Iterator( data_.end(), data_.end(), data_ ); }
 		Iterator nearest_neighbour( value_type );
+		Iterator nearest_neighbour_nonrecursive( value_type );
 		Iterator lowest_neighbour( value_type );
 		typename T_functor::result_type distance_squared( value_type pointA, value_type pointB );
 	private:
+		enum class TraversalHistory { Left, Right, SubTree };
 		std::pair<Iterator,typename T_functor::result_type> nearest_neighbour_subSearch( value_type searchData, Iterator iSubTree, typename std::vector<T_functor>::const_iterator iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> currentBest );
 		std::vector<typename T_iterator::value_type> data_;
 		std::vector<T_functor> partitioners_;
@@ -317,6 +321,98 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 		++iCurrentPartitioner;
 		if( iCurrentPartitioner==partitioners_.end() ) iCurrentPartitioner=partitioners_.begin();
 	}
+}
+
+template<class T_iterator,class T_functor>
+typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour_nonrecursive( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint )
+{
+	typedef typename T_functor::result_type T_distance;
+
+	Iterator iCurrent=root();
+	// Use an iterator that automatically returns to the start
+	palgo::impl::CyclicIterator<typename decltype(partitioners_)::const_iterator> iCurrentPartitioner( partitioners_.begin(), partitioners_.end() );
+	std::vector<TraversalHistory> history;
+
+	// Just want any valid initial value for "bestMatch". For now use the root node,
+	// it will be updated soon enough.
+	std::pair<Iterator,T_distance> bestMatch=std::make_pair( iCurrent, distance_squared( datapoint, *iCurrent ) );
+
+	do
+	{
+		// Traverse down to the closest bottom level node
+		while( true )
+		{
+			if( (*iCurrentPartitioner)(datapoint) < (*iCurrentPartitioner)(*iCurrent) )
+			{
+				if( !iCurrent.has_left_child() ) break;
+				iCurrent.goto_left_child();
+				history.push_back(TraversalHistory::Left);
+			}
+			else
+			{
+				if( !iCurrent.has_right_child() ) break;
+				iCurrent.goto_right_child();
+				history.push_back(TraversalHistory::Right);
+			}
+
+			++iCurrentPartitioner;
+		}
+
+		T_distance distance=distance_squared( datapoint, *iCurrent );
+		if( distance<bestMatch.second ) bestMatch={iCurrent,distance};
+
+		// Rewind the traversal, checking to see if there are closer points
+		while( iCurrent.has_parent() )
+		{
+			iCurrent.goto_parent();
+			--iCurrentPartitioner;
+
+			T_distance distance=distance_squared( datapoint, *iCurrent );
+			if( distance<bestMatch.second ) bestMatch={iCurrent,distance};
+
+			// Need to check down the other branch to see if there are any points closer
+			switch( history.back() )
+			{
+				case TraversalHistory::Left :
+					history.pop_back();
+					if( !iCurrent.has_right_child() ) continue;
+					iCurrent.goto_right_child();
+					++iCurrentPartitioner;
+					break;
+				case TraversalHistory::Right :
+					history.pop_back();
+					if( !iCurrent.has_left_child() ) continue;
+					iCurrent.goto_left_child();
+					++iCurrentPartitioner;
+					break;
+				case TraversalHistory::SubTree :
+					// This was already part of a subtree traversal (which has
+					// just completed) so don't go down the other branch.
+					history.pop_back();
+					continue;
+			}
+
+			// See if the splitting plane is within the distance of the current best match. If it
+			// is, need to traverse down that branch as well.
+			if( std::pow( (*iCurrentPartitioner)(*iCurrent)-(*iCurrentPartitioner)(datapoint), 2 )<bestMatch.second )
+			{
+				// Start the main loop again starting from this current point
+				history.push_back( TraversalHistory::SubTree );
+				break;
+			}
+			else
+			{
+				// We came down one level to check the distance to the splitting plane.
+				// Since there's no need to traverse down that branch can jump back up
+				// to the original level we were on.
+				iCurrent.goto_parent();
+				--iCurrentPartitioner;
+			}
+		} // end of traversal rewind back to the root node
+
+	} while( !history.empty() ); // end of main loop. Only ever another loop if a subtree search is required.
+
+	return bestMatch.first; // return the iterator to the best match
 }
 
 template<class T_iterator,class T_functor>

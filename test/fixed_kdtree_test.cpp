@@ -661,5 +661,74 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly" )
 			CHECK( iNearest->second == 96 );
 		}
 	}
+}
 
+SCENARIO( "Check that a kdtree can find nearest neighbours correctly without recursion" )
+{
+	GIVEN( "A tree of (x) points" )
+	{
+		typedef std::vector<int> TestData;
+		TestData input={ 14, 33, 5, 48, 34, 16, 24, 2, 34, 46, 42, 12 };
+		auto myTree=palgo::make_fixed_kdtree( input.begin(), input.end() );
+
+		WHEN( "Searching for datapoints" )
+		{
+			auto iNearest=myTree.nearest_neighbour_nonrecursive(0);
+			CHECK( *iNearest == 2 );
+
+			iNearest=myTree.nearest_neighbour_nonrecursive(2);
+			CHECK( *iNearest == 2 );
+
+			iNearest=myTree.nearest_neighbour_nonrecursive(4);
+			CHECK( *iNearest == 5 );
+
+			iNearest=myTree.nearest_neighbour_nonrecursive(15);
+			CHECK( *iNearest == 16 ); // This is a bit ambiguous. 14 would also be valid.
+		}
+	}
+
+	GIVEN( "A tree of (x,y) points" )
+	{
+		//printRandomInitialiserList<int>( 15, 2, 0, 200 );
+		typedef std::vector< std::pair<int,int> > TestData;
+
+		TestData input={ {142,69}, {124,34}, {80,88}, {194,126}, {34,110}, {170,76}, {168,2}, {40,49}, {142,96}, {131,86}, {184,83}, {57,115} };
+
+		std::vector< std::function<float(const TestData::value_type&)> > partitioners;
+		partitioners.push_back( [](const TestData::value_type& point){ return point.first; } );
+		partitioners.push_back( [](const TestData::value_type& point){ return point.second; } );
+
+		auto myTree=palgo::make_fixed_kdtree( input.begin(), input.end(), partitioners );
+
+		WHEN( "Searching for datapoints that exactly match the input finds the correct point" )
+		{
+			// This just makes sure that all branches of the tree can be traversed down
+			for( const auto& inputPair : input )
+			{
+				INFO( "Checking for exact match of {" << inputPair.first << "," << inputPair.second << "}" );
+				auto iNearest=myTree.nearest_neighbour_nonrecursive( inputPair );
+				CHECK( iNearest->first == inputPair.first );
+				CHECK( iNearest->second == inputPair.second );
+			}
+		}
+
+		WHEN( "Searching for datapoints with approximate matches" )
+		{
+			auto iNearest=myTree.nearest_neighbour_nonrecursive( std::make_pair(41,49) );
+			CHECK( iNearest->first == 40 );
+			CHECK( iNearest->second == 49 );
+
+			iNearest=myTree.nearest_neighbour_nonrecursive( std::make_pair(58,115) );
+			CHECK( iNearest->first == 57 );
+			CHECK( iNearest->second == 115 );
+
+			iNearest=myTree.nearest_neighbour_nonrecursive( std::make_pair(146,60) );
+			CHECK( iNearest->first == 142 );
+			CHECK( iNearest->second == 69 );
+
+			iNearest=myTree.nearest_neighbour_nonrecursive( std::make_pair(141,97) );
+			CHECK( iNearest->first == 142 );
+			CHECK( iNearest->second == 96 );
+		}
+	}
 }
