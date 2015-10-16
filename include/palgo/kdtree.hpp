@@ -4,6 +4,8 @@
 #include <vector>
 #include <cmath>
 #include <functional>
+#include <limits>
+#include <algorithm>
 #include "palgo/impl/CyclicIterator.hpp"
 
 
@@ -40,15 +42,15 @@ namespace palgo
 			}
 			Iterator& goto_left_child() { parentStack_.push_back(subTreeFarRight_); subTreeFarRight_=iterator_; setIterator(); return *this; }
 			Iterator& goto_right_child() { parentStack_.push_back(subTreeFarLeft_); subTreeFarLeft_=iterator_+1; setIterator(); return *this; }
-			Iterator parent() { return Iterator(*this).goto_parent(); }
-			Iterator left_child() { return Iterator(*this).goto_left_child(); }
-			Iterator right_child() { return Iterator(*this).goto_right_child(); }
-			Iterator subtree() { Iterator returnValue(*this); returnValue.parentStack_.clear(); return returnValue; }
+			Iterator parent() const { return Iterator(*this).goto_parent(); }
+			Iterator left_child() const { return Iterator(*this).goto_left_child(); }
+			Iterator right_child() const { return Iterator(*this).goto_right_child(); }
+			Iterator subtree() const { Iterator returnValue(*this); returnValue.parentStack_.clear(); return returnValue; }
 			value_type operator*() { return *iterator_; }
-			const value_type* operator->() { return &(*iterator_); }
-			bool has_parent() { return !parentStack_.empty(); }
-			bool has_left_child() { return iterator_!=subTreeFarLeft_; }
-			bool has_right_child() { return iterator_+1!=subTreeFarRight_; }
+			const value_type* operator->() const { return &(*iterator_); }
+			bool has_parent() const { return !parentStack_.empty(); }
+			bool has_left_child() const { return iterator_!=subTreeFarLeft_; }
+			bool has_right_child() const { return iterator_+1!=subTreeFarRight_; }
 		public:
 			Iterator& operator=( const Iterator& other )
 			{
@@ -83,13 +85,13 @@ namespace palgo
 		fixed_kdtree( T_iterator begin, T_iterator end, std::vector<T_functor> partitioners );
 		Iterator root() const { return Iterator( data_.begin(), data_.end(), data_ ); }
 		Iterator end() const { return Iterator( data_.end(), data_.end(), data_ ); }
-		Iterator nearest_neighbour( value_type );
-		Iterator nearest_neighbour_nonrecursive( value_type );
-		Iterator lowest_neighbour( value_type );
-		typename T_functor::result_type distance_squared( value_type pointA, value_type pointB );
+		Iterator nearest_neighbour( value_type ) const;
+		Iterator nearest_neighbour_nonrecursive( value_type ) const;
+		Iterator lowest_neighbour( value_type ) const;
+		typename T_functor::result_type distance_squared( value_type pointA, value_type pointB ) const;
 	private:
 		enum class TraversalHistory { Left, Right, SubTree };
-		std::pair<Iterator,typename T_functor::result_type> nearest_neighbour_subSearch( value_type searchData, Iterator iSubTree, typename std::vector<T_functor>::const_iterator iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> currentBest );
+		std::pair<Iterator,typename T_functor::result_type> nearest_neighbour_subSearch( value_type searchData, Iterator iSubTree, typename std::vector<T_functor>::const_iterator iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> currentBest ) const;
 		std::vector<typename T_iterator::value_type> data_;
 		std::vector<T_functor> partitioners_;
 	};
@@ -205,7 +207,7 @@ palgo::fixed_kdtree<T_iterator,std::function<typename T_iterator::value_type(con
 
 
 template<class T_iterator,class T_functor>
-typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint )
+typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint ) const
 {
 	typedef typename T_functor::result_type T_distance;
 
@@ -221,7 +223,7 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 }
 
 template<class T_iterator,class T_functor>
-std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typename T_functor::result_type> palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour_subSearch( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type searchData, typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator iCurrent, typename std::vector<T_functor>::const_iterator iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> bestMatch  )
+std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typename T_functor::result_type> palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour_subSearch( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type searchData, typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator iCurrent, typename std::vector<T_functor>::const_iterator iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> bestMatch  ) const
 {
 	typedef typename T_functor::result_type T_distance;
 
@@ -300,7 +302,7 @@ std::pair<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator,typ
 }
 
 template<class T_iterator,class T_functor>
-typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::lowest_neighbour( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint )
+typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::lowest_neighbour( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint ) const
 {
 	Iterator returnValue=root();
 	auto iCurrentPartitioner=partitioners_.begin();
@@ -324,7 +326,7 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 }
 
 template<class T_iterator,class T_functor>
-typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour_nonrecursive( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint )
+typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour_nonrecursive( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type datapoint ) const
 {
 	typedef typename T_functor::result_type T_distance;
 
@@ -416,7 +418,7 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 }
 
 template<class T_iterator,class T_functor>
-typename T_functor::result_type palgo::fixed_kdtree<T_iterator,T_functor>::distance_squared( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type pointA, typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type pointB )
+typename T_functor::result_type palgo::fixed_kdtree<T_iterator,T_functor>::distance_squared( typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type pointA, typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type pointB ) const
 {
 	typename T_functor::result_type distanceSquared=0;
 	for( const auto& partitioner : partitioners_ )
