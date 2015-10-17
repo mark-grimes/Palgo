@@ -732,3 +732,25 @@ SCENARIO( "Check that a kdtree can find nearest neighbours correctly without rec
 		}
 	}
 }
+
+SCENARIO( "Check that a kdtree can find batch nearest neighbours correctly" )
+{
+	GIVEN( "A tree of (x,y) points" )
+	{
+		typedef std::vector< std::pair<int,int> > TestData;
+
+		TestData input={ {142,69}, {124,34}, {80,88}, {194,126}, {34,110}, {170,76}, {168,2}, {40,49}, {142,96}, {131,86}, {184,83}, {57,115} };
+
+		std::vector< std::function<float(const TestData::value_type&)> > partitioners;
+		partitioners.push_back( [](const TestData::value_type& point){ return point.first; } );
+		partitioners.push_back( [](const TestData::value_type& point){ return point.second; } );
+
+		auto myTree=palgo::make_fixed_kdtree( input.begin(), input.end(), partitioners );
+
+		WHEN( "Searching for datapoints that exactly match the input finds the correct point" )
+		{
+			auto nearest=myTree.nearest_neighbour( input );
+			CHECK( nearest.size() == input.size() );
+		}
+	}
+}

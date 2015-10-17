@@ -6,6 +6,7 @@
 #include <functional>
 #include <limits>
 #include <algorithm>
+#include <thread>
 #include "palgo/impl/CyclicIterator.hpp"
 
 
@@ -87,6 +88,9 @@ namespace palgo
 		Iterator end() const { return Iterator( data_.end(), data_.end(), data_ ); }
 		Iterator nearest_neighbour( value_type ) const;
 		Iterator nearest_neighbour_nonrecursive( value_type ) const;
+		std::vector<Iterator> nearest_neighbour( const std::vector<value_type>& ) const;
+		template<class T_inputIter,class T_outputIter>
+		void nearest_neighbour( T_inputIter iInputBegin, const T_inputIter iInputEnd, T_outputIter iOutputBegin, const T_outputIter iOutputEnd ) const;
 		Iterator lowest_neighbour( value_type ) const;
 		typename T_functor::result_type distance_squared( value_type pointA, value_type pointB ) const;
 	private:
@@ -410,6 +414,42 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 	} while( !history.empty() ); // end of main loop. Only ever another loop if a subtree search is required.
 
 	return bestMatch.first; // return the iterator to the best match
+}
+
+template<class T_iterator,class T_functor>
+std::vector<typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator> palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour( const std::vector<typename palgo::fixed_kdtree<T_iterator,T_functor>::value_type>& datapoints ) const
+{
+	std::vector<Iterator> returnValue( datapoints.size(), root() );
+
+	size_t numThreads=datapoints.size()/5; // Arbitrary minimum 5 points per thread
+	if( numThreads>4 ) numThreads=4; // Arbitrary maximum 8 threads
+	const size_t numItemsPerThread=datapoints.size()/numThreads;
+
+	// Since the method I want to call is not static, I have to use std::bind to pass it
+	// as a constructor argument to std::thread.
+	auto memberFunction=std::bind( &fixed_kdtree<T_iterator,T_functor>::nearest_neighbour<const value_type*,Iterator*>, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4 );
+	std::vector<std::thread> threads;
+	for( size_t index=0; index<numThreads; ++ index )
+	{
+		size_t threadStart=index*numItemsPerThread;
+		size_t threadEnd=(index+1)*numItemsPerThread;
+		if( index+1==numThreads ) threadEnd=datapoints.size();
+
+		threads.emplace_back( memberFunction, &datapoints[threadStart], &datapoints[threadEnd], &returnValue[threadStart], &returnValue[threadEnd] );
+
+//		threads.emplace_back( [=,&datapoints,&returnValue](){
+//			for( size_t index=threadStart; index<threadEnd; ++index ) returnValue[index]=nearest_neighbour_nonrecursive(datapoints[index]);
+//		} );
+	}
+
+	for( auto& thread : threads ) thread.join();
+	return returnValue;
+}
+
+template<class T_iterator,class T_functor> template<class T_inputIter,class T_outputIter>
+void palgo::fixed_kdtree<T_iterator,T_functor>::nearest_neighbour( T_inputIter iInputBegin, const T_inputIter iInputEnd, T_outputIter iOutputBegin, const T_outputIter iOutputEnd ) const
+{
+	for( ; iInputBegin!=iInputEnd && iOutputBegin!=iOutputEnd; ++iInputBegin, ++iOutputBegin ) *iOutputBegin=nearest_neighbour_nonrecursive( *iInputBegin );
 }
 
 template<class T_iterator,class T_functor>
