@@ -65,7 +65,7 @@ namespace palgo
 			Iterator( Iterator&& other ) = default;
 		public:
 			Iterator( typename container_type::const_iterator leftLimit, typename container_type::const_iterator rightLimit, const container_type& container )
-				: container_(container), subTreeFarLeft_(leftLimit), subTreeFarRight_(rightLimit) { setIterator(); }
+				: subTreeFarLeft_(leftLimit), subTreeFarRight_(rightLimit), container_(container) { setIterator(); }
 		private:
 			inline void setIterator() { iterator_=subTreeFarLeft_+std::distance(subTreeFarLeft_,subTreeFarRight_)/2; }
 			inline Iterator current() { return subTreeFarLeft_+std::distance(subTreeFarLeft_,subTreeFarRight_)/2; }
@@ -175,8 +175,6 @@ palgo::fixed_kdtree<T_iterator,T_functor>::fixed_kdtree( T_iterator begin, T_ite
 	: partitioners_(partitioners)
 {
 	if( partitioners.empty() ) throw std::runtime_error("palgo::fixed_kdtree constructed with empty partitioners");
-
-	auto iPartitioner=partitioners.begin();
 
 	// Create a vector of iterators to the original data
 	std::vector<T_iterator> inputData;
@@ -345,13 +343,13 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 			{
 				if( !iCurrent.has_left_child() ) break;
 				iCurrent.goto_left_child();
-				history.push_back(TraversalHistory::Left);
+				history.emplace_back(TraversalHistory::Left);
 			}
 			else
 			{
 				if( !iCurrent.has_right_child() ) break;
 				iCurrent.goto_right_child();
-				history.push_back(TraversalHistory::Right);
+				history.emplace_back(TraversalHistory::Right);
 			}
 
 			++iCurrentPartitioner;
@@ -396,7 +394,7 @@ typename palgo::fixed_kdtree<T_iterator,T_functor>::const_iterator palgo::fixed_
 			if( std::pow( (*iCurrentPartitioner)(*iCurrent)-(*iCurrentPartitioner)(datapoint), 2 )<bestMatch.second )
 			{
 				// Start the main loop again starting from this current point
-				history.push_back( TraversalHistory::SubTree );
+				history.emplace_back( TraversalHistory::SubTree );
 				break;
 			}
 			else
