@@ -144,6 +144,47 @@ namespace palgo
 		typedef typename ListCycle<k%3,T>::type type;
 	};
 
+	/** @brief A kd tree where the partitioning functor is calculated statically.
+	 *
+	 * SYCL does not allow function pointers, so the partitioning functor for a given
+	 * level of the tree has to be known at compile time.
+	 *
+	 * @author Mark Grimes
+	 * @date 18/Oct/2015
+	 */
+	template<class T_datastore,class T_functionList>
+	class static_kdtree
+	{
+	public:
+		class Iterator
+		{
+		public:
+			bool operator==( const Iterator& otherIterator ) { return index_==otherIterator.index_; }
+			bool operator!=( const Iterator& otherIterator ) { return !(*this==otherIterator); }
+			typename T_datastore::value_type operator*() { return *store_[index]; }
+			const typename T_datastore::value_type* operator->() const { return &(*store_[index]); }
+		private:
+			size_t index_;
+			const T_datastore& store_;
+		};
+	public:
+		typedef typename T_datastore::value_type value_type;
+		typedef Iterator const_iterator;
+	public:
+		static_kdtree( T_datastore data, bool presorted=false ) : data_(data)
+		{
+			if( presorted ) return; // If the data is already in the correct order, no need to do anything else
+
+			// SYCL doesn't allow exceptions, but while I'm testing in host code I'll put this in for now.
+			throw std::logic_error( "Construction of static_kdtrees where the input is not already sorted has not been implemented yet" );
+		}
+		Iterator nearest_neighbour( const value_type& query ) const
+		{
+
+		}
+	protected:
+		T_datastore data_;
+	};
 }
 
 #endif
