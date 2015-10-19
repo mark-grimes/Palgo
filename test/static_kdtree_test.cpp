@@ -17,6 +17,30 @@ namespace
 		return std::sqrt(datapoint);
 	}
 
+	struct Functor1
+	{
+		static float value( const int& datapoint )
+		{
+			return 1;
+		}
+	};
+
+	struct Functor2
+	{
+		static int value( const int& datapoint )
+		{
+			return 2;
+		}
+	};
+
+	struct Functor3
+	{
+		static float value( const int& datapoint )
+		{
+			return 3;
+		}
+	};
+
 	struct TestDataStructure
 	{
 	private:
@@ -73,5 +97,38 @@ SCENARIO( "Check that a test_tree works correctly" )
 		std::vector<int> input={ 4,54,2,54,256,345,4 };
 		palgo::test_tree2<int,float,&staticFunction1> foo( input.begin(), input.end() );
 		CHECK( foo.testMethod() == true );
+	}
+	WHEN( "Testing FunctionList variadic data structure" )
+	{
+		typedef palgo::FunctionList< ::Functor1,::Functor2,::Functor3> T_FunctionList;
+
+		// Don't know why, but putting the template directly in the CHECK call messes up the macro
+		//CHECK( (palgo::ListCycle<1,T_FunctionList>::previous)==0 );
+		//CHECK( palgo::ListCycle<2,T_FunctionList>::previous==1 );
+
+		size_t test;
+		test=palgo::ListCycle<0,T_FunctionList>::previous; CHECK( test==2 );
+		test=palgo::ListCycle<1,T_FunctionList>::previous; CHECK( test==0 );
+		test=palgo::ListCycle<2,T_FunctionList>::previous; CHECK( test==1 );
+
+		test=palgo::ListCycle<0,T_FunctionList>::next; CHECK( test==1 );
+		test=palgo::ListCycle<1,T_FunctionList>::next; CHECK( test==2 );
+		test=palgo::ListCycle<2,T_FunctionList>::next; CHECK( test==0 );
+
+
+		auto test1=palgo::ListCycle<0,T_FunctionList>::type::value(4); CHECK( test1==1 );
+		auto test2=palgo::ListCycle<1,T_FunctionList>::type::value(4); CHECK( test2==2 );
+		auto test3=palgo::ListCycle<2,T_FunctionList>::type::value(4); CHECK( test3==3 );
+
+		float testFloat;
+		testFloat=palgo::CyclicList<0,T_FunctionList>::type::value(4); CHECK( testFloat==1 );
+		testFloat=palgo::CyclicList<1,T_FunctionList>::type::value(4); CHECK( testFloat==2 );
+		testFloat=palgo::CyclicList<2,T_FunctionList>::type::value(4); CHECK( testFloat==3 );
+		testFloat=palgo::CyclicList<3,T_FunctionList>::type::value(4); CHECK( testFloat==1 );
+		testFloat=palgo::CyclicList<4,T_FunctionList>::type::value(4); CHECK( testFloat==2 );
+		testFloat=palgo::CyclicList<5,T_FunctionList>::type::value(4); CHECK( testFloat==3 );
+		testFloat=palgo::CyclicList<6,T_FunctionList>::type::value(4); CHECK( testFloat==1 );
+		testFloat=palgo::CyclicList<7,T_FunctionList>::type::value(4); CHECK( testFloat==2 );
+		testFloat=palgo::CyclicList<8,T_FunctionList>::type::value(4); CHECK( testFloat==3 );
 	}
 }

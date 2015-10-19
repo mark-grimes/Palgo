@@ -76,6 +76,73 @@ namespace palgo
 	template<typename T_data, typename T_sort, float (*... V_functions)(const T_data&)>
 	const std::array<float (*)(const T_data&),sizeof...(V_functions)> test_tree2<T_data,T_sort,V_functions...>::partitioners_={V_functions...};
 
+	template<typename... T_functions>
+	struct FunctionList
+	{
+		// intentionally empty base class
+	};
+
+	template<typename T,typename... Ts>
+	struct FunctionList<T,Ts...> : public FunctionList<Ts...>
+	{
+		typedef T func;
+	};
+
+	//-------------------------------------------
+
+	template <size_t,class T, class... Ts>
+	struct TypeHolder;
+
+	template <class T, class... Ts>
+	struct TypeHolder<0, FunctionList<T, Ts...> >
+	{
+		typedef T type;
+	};
+
+	template <size_t k, class T, class... Ts>
+	struct TypeHolder<k, FunctionList<T, Ts...> >
+	{
+		typedef typename TypeHolder<k - 1, FunctionList<Ts...>>::type type;
+	};
+
+	//-------------------------------------------
+	template <size_t,class T, class... Ts>
+	struct ListCycle;
+
+	template <class T, class... Ts>
+	struct ListCycle<0, FunctionList<T, Ts...> >
+	{
+		typedef T type;
+		static constexpr size_t next=1;
+		static constexpr size_t previous=sizeof...(Ts);
+	};
+
+	template <size_t k, class T, class... Ts>
+	struct ListCycle<k, FunctionList<T, Ts...> >
+	{
+		typedef typename TypeHolder<k - 1, FunctionList<Ts...>>::type type;
+		static constexpr size_t next=k+1;
+		static constexpr size_t previous=k-1;
+	};
+
+	template <class T, class... Ts>
+	struct ListCycle<sizeof...(Ts), FunctionList<T, Ts...> >
+	{
+		typedef typename TypeHolder<sizeof...(Ts)-1, FunctionList<Ts...>>::type type;
+		static constexpr size_t next=0;
+		static constexpr size_t previous=sizeof...(Ts)-1;
+	};
+
+	//-------------------------------------------
+	/** @brief Helper template that can statically cycle through a list of types.
+	 * @author Mark Grimes
+	 * @date 18/Oct/2015
+	 */
+	template <size_t k,class T>
+	struct CyclicList
+	{
+		typedef typename ListCycle<k%3,T>::type type;
+	};
 
 }
 
