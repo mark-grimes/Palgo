@@ -113,6 +113,7 @@ namespace palgo
 	struct FunctionList<T,Ts...> : public FunctionList<Ts...>
 	{
 		typedef T func;
+		static constexpr size_t size() { return sizeof...(Ts)+1; }
 	};
 
 	//-------------------------------------------
@@ -176,7 +177,7 @@ namespace palgo
 	template <size_t k,class T>
 	struct CyclicList
 	{
-		typedef typename ListCycle<k%3,T>::type type;
+		typedef typename ListCycle<k%T::size(),T>::type type;
 	};
 
 	/** @brief A kd tree where the partitioning functor is calculated statically.
@@ -258,7 +259,6 @@ namespace palgo
 				{
 					current.goto_left_child();
 					return nearest_neighbourWithPartitioner<ListCycle<T_partitioner::next,T_functionList> >( query, current );
-					//return current;
 				}
 				else return current;
 			}
@@ -278,5 +278,6 @@ namespace palgo
 		size_t size_; // Need to store this because ComputeCpp currently segfaults if accessor size is queried in the kernel. ToDo - remove this once ComputeCpp is fixed.
 	};
 }
+
 
 #endif
