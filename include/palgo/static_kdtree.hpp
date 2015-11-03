@@ -117,6 +117,14 @@ namespace palgo
 		static constexpr size_t previous=sizeof...(Ts);
 	};
 
+	template <class T>
+	struct ListCycle<0, FunctionList<T> > // Special case of a single element list
+	{
+		typedef T type;
+		static constexpr size_t next=0;
+		static constexpr size_t previous=0;
+	};
+
 	template <size_t k, class T, class... Ts>
 	struct ListCycle<k, FunctionList<T, Ts...> >
 	{
