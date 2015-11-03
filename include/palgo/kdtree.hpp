@@ -93,6 +93,8 @@ namespace palgo
 		void nearest_neighbour( T_inputIter iInputBegin, const T_inputIter iInputEnd, T_outputIter iOutputBegin, const T_outputIter iOutputEnd ) const;
 		Iterator lowest_neighbour( value_type ) const;
 		typename T_functor::result_type distance_squared( value_type pointA, value_type pointB ) const;
+		const value_type* rawData() { return data_.data(); }
+		size_t size() { return data_.size(); }
 	private:
 		enum class TraversalHistory { Left, Right, SubTree };
 		std::pair<Iterator,typename T_functor::result_type> nearest_neighbour_subSearch( value_type searchData, Iterator iSubTree, palgo::impl::CyclicIterator<typename std::vector<T_functor>::const_iterator> iCurrentPartitioner, std::pair<Iterator,typename T_functor::result_type> currentBest ) const;
