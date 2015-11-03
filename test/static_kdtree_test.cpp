@@ -57,6 +57,15 @@ namespace
 		static inline float staticGetZ( const TestDataStructure& data ) { return data.z; }
 	};
 
+	/** @brief Just returns the input exactly as received */
+	template<class T>
+	struct ValueFunctor
+	{
+		static T value( const T& datapoint )
+		{
+			return datapoint;
+		}
+	};
 } // end of the unnamed namespace
 
 
@@ -130,5 +139,108 @@ SCENARIO( "Check that a test_tree works correctly" )
 		testFloat=palgo::CyclicList<6,T_FunctionList>::type::value(4); CHECK( testFloat==1 );
 		testFloat=palgo::CyclicList<7,T_FunctionList>::type::value(4); CHECK( testFloat==2 );
 		testFloat=palgo::CyclicList<8,T_FunctionList>::type::value(4); CHECK( testFloat==3 );
+	}
+}
+
+SCENARIO( "Check that a static_kdtree can be traversed properly" )
+{
+	GIVEN( "Datatype of single int, partitioned value" )
+	{
+		typedef std::vector<int> TestData;
+		typedef palgo::FunctionList< ::ValueFunctor<TestData::value_type> > T_FunctionList;
+
+		WHEN( "Traversing a tree of 13 entries" )
+		{
+			TestData input(13);
+			// Fill with 0,1,2,3,4,5,...
+			size_t generator=0;
+			std::generate( input.begin(), input.end(), [&](){return generator++;} );
+
+			// Quick check to make sure I did it properly
+			REQUIRE( input[0]==0 ); REQUIRE( input[7]==7 ); REQUIRE( input[11]==11 );
+
+			palgo::static_kdtree<TestData,T_FunctionList> myTree(input,true);
+
+			auto iNode=myTree.root();
+			CHECK( *iNode==6 );
+			iNode.goto_right_child();
+			CHECK( *iNode==10 );
+			iNode.goto_right_child();
+			CHECK( *iNode==12 );
+			iNode.goto_left_child();
+			CHECK( *iNode==11 );
+
+			// At the end of the tree, so this should not be allowed to happen.
+			// I'm in two minds as to whether this should make the iterator invalid
+			// or not move. The implementation is a little easier if it doesn't move
+			// so I'll do that for now.
+			iNode.goto_left_child();
+			//CHECK( iNode==myTree.end() );
+			CHECK( *iNode==11 );
+
+			iNode=myTree.root().goto_left_child().goto_right_child();
+			CHECK( *iNode==5 );
+			iNode.goto_parent();
+			CHECK( *iNode==3 );
+			iNode.goto_parent();
+			CHECK( *iNode==6 ); // Should be back at the root node
+
+			iNode=myTree.root();
+			CHECK( iNode.has_parent()==false );
+			CHECK( iNode.has_left_child()==true );
+			CHECK( iNode.has_right_child()==true );
+
+			iNode.goto_right_child();
+			CHECK( *iNode==10 );
+			CHECK( iNode.has_parent()==true );
+			CHECK( iNode.has_left_child()==true );
+			CHECK( iNode.has_right_child()==true );
+
+			iNode.goto_right_child();
+			CHECK( *iNode==12 );
+			CHECK( iNode.has_parent()==true );
+			CHECK( iNode.has_left_child()==true );
+			CHECK( iNode.has_right_child()==false );
+
+			iNode.goto_left_child();
+			CHECK( *iNode==11 );
+			CHECK( iNode.has_parent()==true );
+			CHECK( iNode.has_left_child()==false );
+			CHECK( iNode.has_right_child()==false );
+
+			iNode.goto_parent();
+			CHECK( *iNode==12 );
+			CHECK( iNode.has_parent()==true );
+			CHECK( iNode.has_left_child()==true );
+			CHECK( iNode.has_right_child()==false );
+
+			iNode.goto_parent();
+			CHECK( *iNode==10 );
+			CHECK( iNode.has_parent()==true );
+			CHECK( iNode.has_left_child()==true );
+			CHECK( iNode.has_right_child()==true );
+		}
+
+		WHEN( "Traversing a tree of 14 entries" )
+		{
+			TestData input(14);
+			// Fill with 0,1,2,3,4,5,...
+			size_t generator=0;
+			std::generate( input.begin(), input.end(), [&](){return generator++;} );
+
+			// Quick check to make sure I did it properly
+			REQUIRE( input[0]==0 ); REQUIRE( input[7]==7 ); REQUIRE( input[11]==11 );
+
+			palgo::static_kdtree<TestData,T_FunctionList> myTree(input,true);
+
+			auto iNode=myTree.root();
+			CHECK( *iNode==7 );
+			iNode.goto_right_child();
+			CHECK( *iNode==11 );
+			iNode.goto_right_child();
+			CHECK( *iNode==13 );
+			iNode.goto_right_child();
+			CHECK( iNode==myTree.end() );
+		}
 	}
 }
