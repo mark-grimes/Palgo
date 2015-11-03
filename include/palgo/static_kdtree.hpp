@@ -29,16 +29,6 @@ namespace
 		return container.size();
 	}
 
-	/** @brief Info struct to get the type of the containers elements.
-	 *
-	 * Required because cl::sycl::accessor doesn't have a value_type. This is the default for
-	 * normal STL containers, the SYCL accessor special case will be in a specialisation. */
-	template<class T_container>
-	struct ContainerTypeInfo
-	{
-		typedef typename T_container::value_type value_type;
-	};
-
 // If ComputeCpp is being used, add template specialisations
 #ifdef RUNTIME_INCLUDE_SYCL_ACCESSOR_H_ // This is the include guard for SYCL/accessor.h
 	template<class T_dataType,int dimensions,cl::sycl::access::mode accessMode,cl::sycl::access::target target>
@@ -46,13 +36,6 @@ namespace
 	{
 		return container.get_count();
 	}
-
-	/** @brief Template specialisation to retrieve the type of a SYCL accessor's elements. */
-	template<class T_dataType,int dimensions,cl::sycl::access::mode accessMode,cl::sycl::access::target target>
-	struct ContainerTypeInfo<cl::sycl::accessor<T_dataType,dimensions,accessMode,target> >
-	{
-		typedef T_dataType value_type;
-	};
 #endif
 
 } // end of the unnamed namespace
@@ -211,7 +194,7 @@ namespace palgo
 		class Iterator
 		{
 		public:
-			typedef typename ContainerTypeInfo<T_datastore>::value_type value_type;
+			typedef typename T_datastore::value_type value_type;
 		public:
 			Iterator( size_t leftLimit, size_t rightLimit, const T_datastore& store ) : subTreeFarLeft_(leftLimit), subTreeFarRight_(rightLimit), pStore_(&store) {}
 			bool operator==( const Iterator& otherIterator ) { return subTreeFarLeft_==otherIterator.subTreeFarLeft_ && subTreeFarRight_==otherIterator.subTreeFarRight_; }
@@ -246,7 +229,7 @@ namespace palgo
 			const T_datastore* pStore_;
 		};
 	public:
-		typedef typename ContainerTypeInfo<T_datastore>::value_type value_type; // Can't use T_datastore::value_type because sycl::accessor doesn't have it
+		typedef typename T_datastore::value_type value_type;
 		typedef Iterator const_iterator;
 	public:
 		static_kdtree( T_datastore data, bool presorted=false ) : data_(data), size_( ::dataSize(data_) )
