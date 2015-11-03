@@ -38,6 +38,25 @@ namespace
 	}
 #endif
 
+	/** @brief Helper class because I can't partially speciallise functions (no idea why). */
+	template<size_t level,class T_functionList,class T_iterator,class T_value>
+	struct NearestNeighbourHelper; // definition is at the bottom of the file, need CyclicList defined
+
+	template<class T_functionList,class T_iterator,class T_value>
+	struct NearestNeighbourHelper<32,T_functionList,T_iterator,T_value>
+	{
+		static T_iterator traverseDown( const T_value& query, T_iterator& current )
+		{
+#ifndef BUILD_PLATFORM_SPIR
+			throw std::logic_error( "static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
+#else
+			printf("static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
+			return current;
+#endif
+		}
+	};
+
+
 } // end of the unnamed namespace
 
 namespace palgo
@@ -232,6 +251,7 @@ namespace palgo
 	public:
 		typedef typename T_datastore::value_type value_type;
 		typedef Iterator const_iterator;
+		static constexpr size_t MaxTreeDepth=32;
 	public:
 		static_kdtree( T_datastore data, bool presorted=false ) : data_(data), size_( ::dataSize(data_) )
 		{
@@ -245,9 +265,10 @@ namespace palgo
 		Iterator nearest_neighbour( const value_type& query ) const
 		{
 			Iterator current=root();
-			Iterator result=nearest_neighbourWithPartitioner<ListCycle<0,T_functionList> >(query,current);
+			Iterator result= ::NearestNeighbourHelper<0,T_functionList,const_iterator,value_type>::traverseDown(query,current);
 			return result;
 		}
+
 		template<class T_partitioner>
 		Iterator nearest_neighbourWithPartitioner( const value_type& query, Iterator& current ) const
 		{
@@ -271,7 +292,6 @@ namespace palgo
 				}
 				else return current;
 			}
-
 		}
 	protected:
 		T_datastore data_;
@@ -279,5 +299,44 @@ namespace palgo
 	};
 }
 
+//
+// Unnamed namespace for things only used in this file. Definitions of things declared at the top of the file.
+//
+namespace
+{
+	template<size_t level,class T_functionList,class T_iterator,class T_value>
+	struct NearestNeighbourHelper
+	{
+		typedef typename palgo::CyclicList<level,T_functionList>::type Partitioner;
+
+		static T_iterator traverseDown( const T_value& query, T_iterator& current )
+		{
+			if( Partitioner::value(query) < Partitioner::value(*current) )
+			{
+				if( current.has_left_child() )
+				{
+					current.goto_left_child();
+					return NearestNeighbourHelper<level+1,T_functionList,T_iterator,T_value>::traverseDown( query, current );
+				}
+				else return current;
+			}
+			else
+			{
+				if( current.has_right_child() )
+				{
+					current.goto_right_child();
+					return NearestNeighbourHelper<level+1,T_functionList,T_iterator,T_value>::traverseDown( query, current );
+				}
+				else return current;
+			}
+		}
+
+		static T_iterator traverseUp( const T_value& query, T_iterator& current )
+		{
+
+		}
+	};
+
+} // end of the unnamed namespace
 
 #endif
