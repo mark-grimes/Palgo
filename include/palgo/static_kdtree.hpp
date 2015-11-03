@@ -260,7 +260,36 @@ namespace palgo
 		Iterator end() const { return Iterator( size_, size_, data_ ); }
 		Iterator nearest_neighbour( const value_type& query ) const
 		{
-			return end();
+			Iterator current=root();
+			Iterator result=nearest_neighbourWithPartitioner<ListCycle<0,T_functionList> >(query,current);
+			printf( "Search for %f yielded %f\n",query,*result);
+			return result;
+		}
+		template<class T_partitioner>
+		Iterator nearest_neighbourWithPartitioner( const value_type& query, Iterator& current ) const
+		{
+			typedef typename T_partitioner::type Partitioner;
+
+			if( Partitioner::value(query) < Partitioner::value(*current) )
+			{
+				if( current.has_left_child() )
+				{
+					current.goto_left_child();
+					return nearest_neighbourWithPartitioner<ListCycle<T_partitioner::next,T_functionList> >( query, current );
+					//return current;
+				}
+				else return current;
+			}
+			else
+			{
+				if( current.has_right_child() )
+				{
+					current.goto_right_child();
+					return nearest_neighbourWithPartitioner<ListCycle<T_partitioner::next,T_functionList> >( query, current );
+				}
+				else return current;
+			}
+
 		}
 	protected:
 		T_datastore data_;
