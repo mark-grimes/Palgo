@@ -38,6 +38,16 @@ namespace
 	}
 #endif
 
+	// Definition of this function is at the end of the file (need CyclicList defined first)
+	template<size_t level,class T_functionList,class T_iterator,class T_value>
+	T_iterator nearest_neighbourWithLevel( const T_value& query, T_iterator& current );
+
+	template<32,class T_functionList,class T_iterator,class T_value>
+	T_iterator nearest_neighbourWithLevel( const T_value& query, T_iterator& current )
+	{
+		throw std::logic_error( "static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
+	}
+
 } // end of the unnamed namespace
 
 namespace palgo
@@ -232,6 +242,7 @@ namespace palgo
 	public:
 		typedef typename T_datastore::value_type value_type;
 		typedef Iterator const_iterator;
+		static constexpr size_t MaxTreeDepth=32;
 	public:
 		static_kdtree( T_datastore data, bool presorted=false ) : data_(data), size_( ::dataSize(data_) )
 		{
@@ -245,9 +256,41 @@ namespace palgo
 		Iterator nearest_neighbour( const value_type& query ) const
 		{
 			Iterator current=root();
-			Iterator result=nearest_neighbourWithPartitioner<ListCycle<0,T_functionList> >(query,current);
+			//Iterator result=nearest_neighbourWithPartitioner<ListCycle<0,T_functionList> >(query,current);
+			Iterator result= ::nearest_neighbourWithLevel<0,T_functionList>(query,current);
 			return result;
 		}
+//		template<size_t level>
+//		static Iterator nearest_neighbourWithLevel( const value_type& query, Iterator& current )
+//		{
+//			typedef typename CyclicList<level,T_functionList>::type Partitioner;
+//
+//			if( Partitioner::value(query) < Partitioner::value(*current) )
+//			{
+//				if( current.has_left_child() )
+//				{
+//					current.goto_left_child();
+//					return nearest_neighbourWithLevel<level+1>( query, current );
+//				}
+//				else return current;
+//			}
+//			else
+//			{
+//				if( current.has_right_child() )
+//				{
+//					current.goto_right_child();
+//					return nearest_neighbourWithLevel<level+1>( query, current );
+//				}
+//				else return current;
+//			}
+//
+//		}
+//		template<>
+//		static Iterator nearest_neighbourWithLevel<MaxTreeDepth>( const value_type& query, Iterator& current )
+//		{
+//			throw std::logic_error( "static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
+//		}
+
 		template<class T_partitioner>
 		Iterator nearest_neighbourWithPartitioner( const value_type& query, Iterator& current ) const
 		{
@@ -279,5 +322,42 @@ namespace palgo
 	};
 }
 
+template<class T_datastore,class T_functionList>
+typename palgo::static_kdtree<T_datastore,T_functionList>::const_iterator palgo::static_kdtree<T_datastore,T_functionList>::nearest_neighbourWithLevel<palgo::static_kdtree<T_datastore,T_functionList>::MaxTreeDepth>( const value_type& query, Iterator& current ) const
+{
+	throw std::logic_error( "static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
+}
+
+//
+// Unnamed namespace for things only used in this file. Definitions of things declared at the top of the file.
+//
+namespace
+{
+	template<size_t level,class T_functionList,class T_iterator,class T_value>
+	T_iterator nearest_neighbourWithLevel( const T_value& query, T_iterator& current )
+	{
+		typedef typename CyclicList<level,T_functionList>::type Partitioner;
+
+		if( Partitioner::value(query) < Partitioner::value(*current) )
+		{
+			if( current.has_left_child() )
+			{
+				current.goto_left_child();
+				return nearest_neighbourWithLevel<level+1,T_functionList>( query, current );
+			}
+			else return current;
+		}
+		else
+		{
+			if( current.has_right_child() )
+			{
+				current.goto_right_child();
+				return nearest_neighbourWithLevel<level+1,T_functionList>( query, current );
+			}
+			else return current;
+		}
+	}
+
+} // end of the unnamed namespace
 
 #endif
