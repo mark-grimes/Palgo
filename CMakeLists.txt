@@ -43,14 +43,14 @@ IF( BUILD_SYCL_TESTS )
 			SET( OUTPUT_SYCL_FILE "${src}.sycl" ) # temp variable for convenience
 			ADD_CUSTOM_COMMAND( OUTPUT ${OUTPUT_SYCL_FILE} COMMAND ${DEVICE_COMPILER} ${CMAKE_CXX_FLAGS} ${DEVICE_COMPILER_FLAGS} -I${CMAKE_SOURCE_DIR}/include -c ${INPUT_FILE} -o ${src}.bc DEPENDS ${INPUT_FILE} )
 			SET_PROPERTY( SOURCE ${INPUT_FILE} PROPERTY COMPILE_FLAGS "-DPALGO_MAKE_SYCL_TESTS --include ${OUTPUT_SYCL_FILE}" )
-			#ADD_DEFINITIONS( "--include ${OUTPUT_SYCL_FILE}" )
+			SET( sycl_dependencies ${sycl_dependencies} ${OUTPUT_SYCL_FILE} )
 		ENDFOREACH()
 	ENDIF()
 ENDIF()
 
 
 AUX_SOURCE_DIRECTORY( "${CMAKE_SOURCE_DIR}/test" unittests_sources )
-ADD_EXECUTABLE( palgoTests ${unittests_sources} "sycl_test.cpp.sycl" )
+ADD_EXECUTABLE( palgoTests ${unittests_sources} ${sycl_dependencies} )
 
 IF( ComputeCpp_FOUND )
 	#FOREACH( src ${SYCL_INPUT_FILES} )
