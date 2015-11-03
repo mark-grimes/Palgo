@@ -245,7 +245,6 @@ namespace palgo
 		{
 			Iterator current=root();
 			Iterator result=nearest_neighbourWithPartitioner<ListCycle<0,T_functionList> >(query,current);
-			printf( "Search for %f yielded %f\n",query,*result);
 			return result;
 		}
 		template<class T_partitioner>
