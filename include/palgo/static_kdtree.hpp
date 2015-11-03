@@ -13,6 +13,33 @@
 // TODO - Remove this include once fully tested
 #include <iostream>
 
+//
+// Unnamed namespace for things only used in this file
+//
+namespace
+{
+	/** @brief Info struct to get the type of the containers elements.
+	 *
+	 * Required because cl::sycl::accessor doesn't have a value_type. This is the default for
+	 * normal STL containers, the SYCL accessor special case will be in a specialisation. */
+	template<class T_container>
+	struct ContainerTypeInfo
+	{
+		typedef typename T_container::value_type value_type;
+	};
+
+// If ComputeCpp is being used, add template specialisations
+#ifdef RUNTIME_INCLUDE_SYCL_ACCESSOR_H_ // This is the include guard for SYCL/accessor.h
+	/** @brief Template specialisation to retrieve the type of a SYCL accessor's elements. */
+	template<class T_dataType,int dimensions,cl::sycl::access::mode accessMode,cl::sycl::access::target target>
+	struct ContainerTypeInfo<cl::sycl::accessor<T_dataType,dimensions,accessMode,target> >
+	{
+		typedef T_dataType value_type;
+	};
+#endif
+
+} // end of the unnamed namespace
+
 namespace palgo
 {
 
@@ -167,16 +194,19 @@ namespace palgo
 		class Iterator
 		{
 		public:
+			typedef typename ContainerTypeInfo<T_datastore>::value_type value_type;
+		public:
+			Iterator( size_t index, const T_datastore& store ) : index_(index), pStore_(&store) {}
 			bool operator==( const Iterator& otherIterator ) { return index_==otherIterator.index_; }
 			bool operator!=( const Iterator& otherIterator ) { return !(*this==otherIterator); }
-			typename T_datastore::value_type operator*() { return *store_[index]; }
-			const typename T_datastore::value_type* operator->() const { return &(*store_[index]); }
+			value_type operator*() { return (*pStore_)[index_]; }
+			const value_type* operator->() const { return &((*pStore_)[index_]); }
 		private:
 			size_t index_;
-			const T_datastore& store_;
+			const T_datastore* pStore_;
 		};
 	public:
-		typedef typename T_datastore::value_type value_type;
+		typedef typename ContainerTypeInfo<T_datastore>::value_type value_type; // Can't use T_datastore::value_type because sycl::accessor doesn't have it
 		typedef Iterator const_iterator;
 	public:
 		static_kdtree( T_datastore data, bool presorted=false ) : data_(data)
@@ -188,7 +218,7 @@ namespace palgo
 		}
 		Iterator nearest_neighbour( const value_type& query ) const
 		{
-
+			return Iterator(0,data_);
 		}
 	protected:
 		T_datastore data_;
