@@ -135,65 +135,63 @@ SCENARIO( "Attempting to use ComputeCpp to run nearest neighbour searches" )
 #ifndef PALGO_MAKE_SYCL_TESTS
 	std::cerr << "NOTE: SYCL tests not run because it was not configured by cmake to do so (" << __FILE__ << ")." << std::endl;
 #else
-	GIVEN( "A kdtree" )
+	GIVEN( "A one dimensional fixed_kdtree and some random data queries" )
 	{
-		std::vector<float> data(15);
-		std::vector<float> queries(3);
+		std::vector<float> data(50);
+		std::vector<float> queries(10);
 		fillWithRandoms(data);
 		fillWithRandoms(queries);
 
 		std::vector< std::function<float(const float)> > partitioners;
 		partitioners.push_back( [](const float point){ return point; } );
-		partitioners.push_back( [](const float point){ return -point; } );
+		// The way fixed_kdtree and static_kdtree specify their partitioner functions
+		// is different, but the result needs to be the same. Until I implement building
+		// static_kdtree properly I need to build first with fixed_kdtree; then take the
+		// sorted data and give it to static_kdtree.
+		typedef palgo::FunctionList< ::ValueFunctor<float> > T_FunctionList;
 
 		auto myTree=palgo::make_fixed_kdtree( data.begin(), data.end() );
 
-		::XeonPhiDeviceSelector selector;
-		cl::sycl::queue myQueue(selector);
-		cl::sycl::buffer<float> queryBuffer( queries.data(), cl::sycl::range<1>(queries.size()) );
-		cl::sycl::buffer<float> outputBuffer( cl::sycl::range<1>(queries.size()) );
-		cl::sycl::buffer<float> treeBuffer( myTree.rawData(), cl::sycl::range<1>(myTree.size()) );
-
-		typedef palgo::FunctionList< ::ValueFunctor<float> > T_FunctionList;
-
+		WHEN( "Running nearest neighbour searches with SYCL and checking the answers against fixed_kdtree" )
 		{
-			auto queryAccess=queryBuffer.get_access<cl::sycl::access::mode::read,cl::sycl::access::target::host_buffer>();
-			auto treeAccess=treeBuffer.get_access<cl::sycl::access::mode::read,cl::sycl::access::target::host_buffer>();
-			auto outputAccess=outputBuffer.get_access<cl::sycl::access::mode::write,cl::sycl::access::target::host_buffer>();
+			cl::sycl::buffer<float> outputBuffer( cl::sycl::range<1>(queries.size()) );
 
-			palgo::static_kdtree<decltype(treeAccess),T_FunctionList> treeView(treeAccess,true);
+			{ // Block to make sure the myQueue destructor blocks until all queued items have finished
+				cl::sycl::buffer<float> treeBuffer( myTree.rawData(), cl::sycl::range<1>(myTree.size()) );
+				cl::sycl::buffer<float> queryBuffer( queries.data(), cl::sycl::range<1>(queries.size()) );
 
-			for( size_t index=0; index!=queries.size(); ++index )
+				::XeonPhiDeviceSelector selector;
+				cl::sycl::queue myQueue(selector);
+
+				myQueue.submit( [&]( cl::sycl::handler& myHandler )
+				{
+					auto queryAccess=queryBuffer.get_access<cl::sycl::access::mode::read>(myHandler);
+					auto treeAccess=treeBuffer.get_access<cl::sycl::access::mode::read>(myHandler);
+					auto outputAccess=outputBuffer.get_access<cl::sycl::access::mode::write>(myHandler);
+
+					// This creates a static_kdtree that uses the treeAccess accessor as the backing store. The
+					// data is already sorted into the correct order by fixed_kdtree (hence the second constructor
+					// argument that tells static_tree it can skip building).
+					palgo::static_kdtree<decltype(treeAccess),T_FunctionList> treeView(treeAccess,true);
+
+					myHandler.parallel_for<class NeighbourSearch>( cl::sycl::range<1>(queryBuffer.get_count()), [=](cl::sycl::item<1> range)
+					{
+						outputAccess[range]=*treeView.nearest_neighbour( queryAccess[range] );
+					} );
+				});
+			} // End of block to limit scope of myQueue
+
+			//
+			// Check the results
+			//
+			auto outputCheck=outputBuffer.get_access<cl::sycl::access::mode::read,cl::sycl::access::target::host_buffer>();
+			size_t correctAnswers=0;
+			for( size_t index=0; index<queries.size(); ++index )
 			{
-				auto result=treeView.nearest_neighbour( queryAccess[index] );
-				std::cout << "Result " << index << " is " << *result << std::endl;
+				float correctAnswer=*myTree.nearest_neighbour_nonrecursive( queries[index] );
+				CHECK( correctAnswer==outputCheck[index] );
 			}
 		}
-		myQueue.submit( [&]( cl::sycl::handler& myHandler )
-		{
-			//auto dataAccess=dataBuffer.get_access<cl::sycl::access::mode::read>(myHandler);
-			auto queryAccess=queryBuffer.get_access<cl::sycl::access::mode::read>(myHandler);
-			auto treeAccess=treeBuffer.get_access<cl::sycl::access::mode::read>(myHandler);
-			auto outputAccess=outputBuffer.get_access<cl::sycl::access::mode::write>(myHandler);
-
-			palgo::static_kdtree<decltype(treeAccess),T_FunctionList> treeView(treeAccess,true);
-
-			myHandler.parallel_for<class HelloWorld>( cl::sycl::range<1>(queryBuffer.get_count()), [=](cl::sycl::item<1> range)
-			{
-				outputAccess[range]=*treeView.nearest_neighbour( queryAccess[range] );
-			} );
-		});
-
-		//
-		// Check the results
-		//
-		auto outputCheck=outputBuffer.get_access<cl::sycl::access::mode::read,cl::sycl::access::target::host_buffer>();
-		size_t correctAnswers=0;
-		for( size_t index=0; index<queries.size(); ++index )
-		{
-			float correctAnswer=*myTree.nearest_neighbour_nonrecursive( queries[index] );
-			CHECK( correctAnswer==outputCheck[index] );
-		}
-	}
+	} // end of "GIVEN one dimensional tree"
 #endif // Of "#ifndef PALGO_MAKE_SYCL_TESTS"
 }
