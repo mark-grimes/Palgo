@@ -203,6 +203,45 @@ namespace palgo
 		typedef typename ListCycle<k%T::size(),T>::type type;
 	};
 
+	template<size_t index,class T_functionList,class T_element,class T_result>
+	struct StaticSquareAndSum
+	{
+		static void apply( const T_element& data1, const T_element& data2, T_result& result )
+		{
+			auto result1=TypeHolder<index,T_functionList>::type::value(data1);
+			auto result2=TypeHolder<index,T_functionList>::type::value(data2);
+			result+=(result1-result2)*(result1-result2);
+			StaticSquareAndSum<index-1,T_functionList,T_element,T_result>::apply( data1, data2, result );
+		}
+	};
+
+	template<class T_functionList,class T_element,class T_result>
+	struct StaticSquareAndSum<0,T_functionList,T_element,T_result>
+	{
+		static void apply( const T_element& data1, const T_element& data2, T_result& result )
+		{
+			auto result1=TypeHolder<0,T_functionList>::type::value(data1);
+			auto result2=TypeHolder<0,T_functionList>::type::value(data2);
+			result+=(result1-result2)*(result1-result2);
+		}
+	};
+
+	/** @brief A functor used to calculate distances between tree elements.
+	 *
+	 * @author Mark Grimes
+	 * @date 06/Nov/2015
+	 */
+	template<class T_functionList,class T_element,class T_result>
+	struct SumOfSquares
+	{
+		static T_result distance( const T_element& element1, const T_element& element2 )
+		{
+			T_result result={};
+			StaticSquareAndSum<T_functionList::size()-1,T_functionList,T_element,T_result>::apply( element1, element2, result );
+			return result;
+		}
+	};
+
 	/** @brief A kd tree where the partitioning functor is calculated statically.
 	 *
 	 * SYCL does not allow function pointers, so the partitioning functor for a given

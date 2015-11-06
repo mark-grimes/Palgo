@@ -226,6 +226,18 @@ SCENARIO( "Check that a test_tree works correctly" )
 		testFloat=palgo::CyclicList<7,T_FunctionList>::type::value(4); CHECK( testFloat==2 );
 		testFloat=palgo::CyclicList<8,T_FunctionList>::type::value(4); CHECK( testFloat==3 );
 	}
+	WHEN( "Testing the SumOfSquares distance functor" )
+	{
+		typedef palgo::FunctionList< ::XFunctor<TestDataStructure>,::YFunctor<TestDataStructure>,::ZFunctor<TestDataStructure> > T_FunctionList;
+		typedef palgo::SumOfSquares<T_FunctionList,TestDataStructure,float> T_DistanceFunctor;
+
+		// Note the function SumOfSquares returns the squared distance. No point in taking the
+		// sqrt if all I care about is the order.
+		CHECK( T_DistanceFunctor::distance(data1,data2)==1 );
+		CHECK( T_DistanceFunctor::distance(TestDataStructure(0,0,0),TestDataStructure(1,0,0))==1 );
+		CHECK( T_DistanceFunctor::distance(TestDataStructure(0,0,0),TestDataStructure(3,4,0))==25 ); // makes a 3-4-5 triangle
+		CHECK( T_DistanceFunctor::distance(TestDataStructure(5,6,7),TestDataStructure(5,9,11))==25 ); // makes a 3-4-5 triangle
+	}
 }
 
 SCENARIO( "Check that a static_kdtree can be traversed properly" )
