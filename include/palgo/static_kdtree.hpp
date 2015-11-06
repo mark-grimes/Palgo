@@ -39,19 +39,23 @@ namespace
 #endif
 
 	/** @brief Helper class because I can't partially speciallise functions (no idea why). */
-	template<size_t level,class T_functionList,class T_iterator,class T_value>
+	template<size_t Level,size_t MaxLevels,class T_functionList,class T_iterator,class T_value>
 	struct NearestNeighbourHelper; // definition is at the bottom of the file, need CyclicList defined
 
-	template<class T_functionList,class T_iterator,class T_value>
-	struct NearestNeighbourHelper<32,T_functionList,T_iterator,T_value>
+	/** @brief Specialisation to halt instantiation at MaxLevels number of levels.
+	 *
+	 * This effectively limits the total number of elements a tree can hold to a compile time constant.
+	 * The number of elements is (2^MaxLevels)-1, so the default of 32 allows more the 4 billion elements.*/
+	template<size_t MaxLevels,class T_functionList,class T_iterator,class T_value>
+	struct NearestNeighbourHelper<MaxLevels,MaxLevels,T_functionList,T_iterator,T_value>
 	{
-		static T_iterator traverseDown( const T_value& query, T_iterator& current )
+		static T_iterator traverseDown( const T_value& query, T_iterator& current ) { throwError(); return current; }
+		static void throwError()
 		{
-#ifndef BUILD_PLATFORM_SPIR
-			throw std::logic_error( "static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
+#ifndef BUILD_PLATFORM_SPIR // Throw an error unless this is in a SYCL kernel, which doesn't allow exceptions
+			throw std::logic_error( "The maximum tree depth has been exceeded. You must increase this static constant for the size of tree you have.");
 #else
-			printf("static_kdtree::MaxTreeDepth has been exceeded. You must increase this static constant for the size of tree you have.");
-			return current;
+			printf("The maximum tree depth has been exceeded. You must increase this static constant for the size of tree you have.");
 #endif
 		}
 	};
@@ -207,7 +211,7 @@ namespace palgo
 	 * @author Mark Grimes
 	 * @date 18/Oct/2015
 	 */
-	template<class T_datastore,class T_functionList>
+	template<class T_datastore,class T_functionList,size_t MaxTreeDepth=32>
 	class static_kdtree
 	{
 	public:
@@ -251,7 +255,6 @@ namespace palgo
 	public:
 		typedef typename T_datastore::value_type value_type;
 		typedef Iterator const_iterator;
-		static constexpr size_t MaxTreeDepth=32;
 	public:
 		static_kdtree( T_datastore data, bool presorted=false ) : data_(data), size_( ::dataSize(data_) )
 		{
@@ -265,7 +268,7 @@ namespace palgo
 		Iterator nearest_neighbour( const value_type& query ) const
 		{
 			Iterator current=root();
-			Iterator result= ::NearestNeighbourHelper<0,T_functionList,const_iterator,value_type>::traverseDown(query,current);
+			Iterator result= ::NearestNeighbourHelper<0,MaxTreeDepth,T_functionList,const_iterator,value_type>::traverseDown(query,current);
 			return result;
 		}
 
@@ -304,10 +307,11 @@ namespace palgo
 //
 namespace
 {
-	template<size_t level,class T_functionList,class T_iterator,class T_value>
+	template<size_t Level,size_t MaxLevels,class T_functionList,class T_iterator,class T_value>
 	struct NearestNeighbourHelper
 	{
-		typedef typename palgo::CyclicList<level,T_functionList>::type Partitioner;
+		typedef float DistanceResultType;
+		typedef typename palgo::CyclicList<Level,T_functionList>::type Partitioner;
 
 		static T_iterator traverseDown( const T_value& query, T_iterator& current )
 		{
@@ -316,24 +320,29 @@ namespace
 				if( current.has_left_child() )
 				{
 					current.goto_left_child();
-					return NearestNeighbourHelper<level+1,T_functionList,T_iterator,T_value>::traverseDown( query, current );
+					return NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value>::traverseDown( query, current );
 				}
-				else return current;
+				else return traverseUp( query, current, current );
 			}
 			else
 			{
 				if( current.has_right_child() )
 				{
 					current.goto_right_child();
-					return NearestNeighbourHelper<level+1,T_functionList,T_iterator,T_value>::traverseDown( query, current );
+					return NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value>::traverseDown( query, current );
 				}
-				else return current;
+				else return traverseUp( query, current, current );
 			}
 		}
 
-		static T_iterator traverseUp( const T_value& query, T_iterator& current )
+		static void mainLoop( const T_value& query, T_iterator& current, std::pair<DistanceResultType,T_iterator> best )
 		{
 
+		}
+
+		static T_iterator traverseUp( const T_value& query, T_iterator& current, T_iterator bestMatch )
+		{
+			return current;
 		}
 	};
 
