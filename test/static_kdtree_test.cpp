@@ -41,8 +41,49 @@ namespace
 		}
 	};
 
+	/** @brief Just returns the input exactly as received */
+	template<class T>
+	struct ValueFunctor
+	{
+		static T value( const T& datapoint )
+		{
+			return datapoint;
+		}
+	};
+
+	/** @brief Functor to partition kd-trees using the "x" data member. */
+	template<class T_struct>
+	struct XFunctor
+	{
+		static decltype(T_struct::x) value( const T_struct& datapoint )
+		{
+			return datapoint.x;
+		}
+	};
+
+	template<class T_struct>
+	struct YFunctor
+	{
+		static decltype(T_struct::y) value( const T_struct& datapoint )
+		{
+			return datapoint.y;
+		}
+	};
+
+	template<class T_struct>
+	struct ZFunctor
+	{
+		static decltype(T_struct::z) value( const T_struct& datapoint )
+		{
+			return datapoint.z;
+		}
+	};
+
 	struct TestDataStructure
 	{
+		friend struct XFunctor<TestDataStructure>;
+		friend struct YFunctor<TestDataStructure>;
+		friend struct ZFunctor<TestDataStructure>;
 	private:
 		float x;
 		float y;
@@ -57,15 +98,6 @@ namespace
 		static inline float staticGetZ( const TestDataStructure& data ) { return data.z; }
 	};
 
-	/** @brief Just returns the input exactly as received */
-	template<class T>
-	struct ValueFunctor
-	{
-		static T value( const T& datapoint )
-		{
-			return datapoint;
-		}
-	};
 } // end of the unnamed namespace
 
 
