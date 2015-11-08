@@ -39,17 +39,20 @@ namespace
 #endif
 
 	/** @brief Helper class because I can't partially speciallise functions (no idea why). */
-	template<size_t Level,size_t MaxLevels,class T_functionList,class T_iterator,class T_value>
+	template<size_t Level,size_t MaxLevels,class T_functionList,class T_iterator,class T_value,class T_distanceFunctor>
 	struct NearestNeighbourHelper; // definition is at the bottom of the file, need CyclicList defined
 
 	/** @brief Specialisation to halt instantiation at MaxLevels number of levels.
 	 *
 	 * This effectively limits the total number of elements a tree can hold to a compile time constant.
 	 * The number of elements is (2^MaxLevels)-1, so the default of 32 allows more the 4 billion elements.*/
-	template<size_t MaxLevels,class T_functionList,class T_iterator,class T_value>
-	struct NearestNeighbourHelper<MaxLevels,MaxLevels,T_functionList,T_iterator,T_value>
+	template<size_t MaxLevels,class T_functionList,class T_iterator,class T_value,class T_distanceFunctor>
+	struct NearestNeighbourHelper<MaxLevels,MaxLevels,T_functionList,T_iterator,T_value,T_distanceFunctor>
 	{
+		typedef T_distanceFunctor distance_functor;
+		typedef typename distance_functor::result_type distance_type;
 		static T_iterator traverseDown( const T_value& query, T_iterator& current ) { throwError(); return current; }
+		static void testMain( const T_value& query, T_iterator& current, std::pair<distance_type,T_iterator>& bestMatch ) { throwError(); }
 		static void throwError()
 		{
 #ifndef BUILD_PLATFORM_SPIR // Throw an error unless this is in a SYCL kernel, which doesn't allow exceptions
@@ -234,6 +237,8 @@ namespace palgo
 	template<class T_functionList,class T_element,class T_result>
 	struct SumOfSquares
 	{
+		typedef T_result result_type;
+
 		static T_result distance( const T_element& element1, const T_element& element2 )
 		{
 			T_result result={};
@@ -259,6 +264,7 @@ namespace palgo
 		public:
 			typedef typename T_datastore::value_type value_type;
 		public:
+			Iterator() : subTreeFarLeft_(0), subTreeFarRight_(0), pStore_(nullptr) {}
 			Iterator( size_t leftLimit, size_t rightLimit, const T_datastore& store ) : subTreeFarLeft_(leftLimit), subTreeFarRight_(rightLimit), pStore_(&store) {}
 			bool operator==( const Iterator& otherIterator ) { return subTreeFarLeft_==otherIterator.subTreeFarLeft_ && subTreeFarRight_==otherIterator.subTreeFarRight_; }
 			bool operator!=( const Iterator& otherIterator ) { return !(*this==otherIterator); }
@@ -283,6 +289,9 @@ namespace palgo
 			}
 			Iterator& goto_left_child() { subTreeFarRight_=currentIndex(); return *this; }
 			Iterator& goto_right_child() { subTreeFarLeft_=currentIndex()+1; return *this; }
+			Iterator parent() const { return Iterator(*this).goto_parent(); }
+			Iterator left_child() const { return Iterator(*this).goto_left_child(); }
+			Iterator right_child() const { return Iterator(*this).goto_right_child(); }
 			bool has_parent() const { if( subTreeFarLeft_==0 && subTreeFarRight_==pStore_->size() ) return false; else return true; }
 			bool has_left_child() const { return currentIndex()!=subTreeFarLeft_; }
 			bool has_right_child() const { return currentIndex()+1!=subTreeFarRight_; }
@@ -294,6 +303,8 @@ namespace palgo
 	public:
 		typedef typename T_datastore::value_type value_type;
 		typedef Iterator const_iterator;
+		typedef palgo::SumOfSquares<T_functionList,value_type,float> distance_functor;
+		typedef typename distance_functor::result_type distance_type;
 	public:
 		static_kdtree( T_datastore data, bool presorted=false ) : data_(data), size_( ::dataSize(data_) )
 		{
@@ -307,8 +318,9 @@ namespace palgo
 		Iterator nearest_neighbour( const value_type& query ) const
 		{
 			Iterator current=root();
-			Iterator result= ::NearestNeighbourHelper<0,MaxTreeDepth,T_functionList,const_iterator,value_type>::traverseDown(query,current);
-			return result;
+			std::pair<distance_type,const_iterator> bestResult={ distance_functor::distance(*current,query), current };
+			::NearestNeighbourHelper<0,MaxTreeDepth,T_functionList,const_iterator,value_type,distance_functor>::mainLoop(query,current,bestResult);
+			return bestResult.second;
 		}
 
 		template<class T_partitioner>
@@ -346,11 +358,13 @@ namespace palgo
 //
 namespace
 {
-	template<size_t Level,size_t MaxLevels,class T_functionList,class T_iterator,class T_value>
+	template<size_t Level,size_t MaxLevels,class T_functionList,class T_iterator,class T_value,class T_distanceFunctor>
 	struct NearestNeighbourHelper
 	{
-		typedef float DistanceResultType;
 		typedef typename palgo::CyclicList<Level,T_functionList>::type Partitioner;
+		typedef T_distanceFunctor distance_functor;
+		typedef typename distance_functor::result_type distance_type;
+		typedef NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value,distance_functor> next_level;
 
 		static T_iterator traverseDown( const T_value& query, T_iterator& current )
 		{
@@ -359,23 +373,54 @@ namespace
 				if( current.has_left_child() )
 				{
 					current.goto_left_child();
-					return NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value>::traverseDown( query, current );
+					return NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value,distance_functor>::traverseDown( query, current );
 				}
-				else return traverseUp( query, current, current );
+				else return current;
 			}
 			else
 			{
 				if( current.has_right_child() )
 				{
 					current.goto_right_child();
-					return NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value>::traverseDown( query, current );
+					return NearestNeighbourHelper<Level+1,MaxLevels,T_functionList,T_iterator,T_value,distance_functor>::traverseDown( query, current );
 				}
-				else return traverseUp( query, current, current );
+				else return current;
 			}
 		}
 
-		static void mainLoop( const T_value& query, T_iterator& current, std::pair<DistanceResultType,T_iterator> best )
+		static void mainLoop( const T_value& query, T_iterator& current, std::pair<distance_type,T_iterator>& bestMatch )
 		{
+			testMain( query, current, bestMatch );
+//			traverseDown( query, current );
+//
+//			distance_type distance=distance_functor::distance(query,*current);
+//			if( bestMatch.first>distance ) bestMatch=std::make_pair(distance,current);
+		}
+
+		static void testMain( const T_value& query, T_iterator& current, std::pair<distance_type,T_iterator>& bestMatch )
+		{
+			std::array<bool,2> hasChild;
+			hasChild[0]=current.has_left_child();
+			hasChild[1]=current.has_right_child();
+			std::array<T_iterator,2> children;
+			children[0]=current.left_child();
+			children[1]=current.right_child();
+			size_t branch;
+			if( Partitioner::value(query) < Partitioner::value(*current) ) branch=0;
+			else branch=1;
+			size_t otherBranch=1-branch;
+
+			if( hasChild[branch] ) next_level::testMain( query, children[branch], bestMatch );
+
+			distance_type distance=distance_functor::distance(query,*current);
+			if( bestMatch.first>distance ) bestMatch={ distance, current };
+
+			if( hasChild[otherBranch] )
+			{
+				// ToDo - check this distance check works for all coordinate spaces
+				auto difference=Partitioner::value(query)-Partitioner::value(*current);
+				if( difference*difference < bestMatch.first ) next_level::testMain( query, children[otherBranch], bestMatch );
+			}
 
 		}
 
