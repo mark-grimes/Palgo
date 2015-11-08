@@ -11,6 +11,7 @@
 #include <cmath>
 #include <iostream>
 #include <sstream>
+#include <limits>
 
 //
 // Unnamed namespace for things that shouldn't be used outside this file
