@@ -72,6 +72,25 @@ namespace test
 			std::cout << "\n";
 		}
 	}
+
+	/** @brief Function that finds the closest match to "query" by checking every entry */
+	template<class T_distanceFunctor,template<class,class...> class T_container,class T_value,class T_args>
+	typename T_container<T_value,T_args>::const_iterator bruteForceNearestNeightbour( const T_container<T_value,T_args>& container, const T_value& query )
+	{
+		typedef T_container<T_value,T_args> container_type;
+		typedef typename T_distanceFunctor::result_type distance_type;
+		typedef typename T_container<T_value,T_args>::const_iterator const_iterator;
+
+		std::pair<distance_type,const_iterator> bestMatch={ std::numeric_limits<distance_type>::max(), container.end() };
+
+		for( typename container_type::const_iterator iCurrent=container.begin(); iCurrent<container.end(); ++iCurrent )
+		{
+			distance_type distance=T_distanceFunctor::distance(*iCurrent,query);
+			if( distance < bestMatch.first ) bestMatch={ distance, iCurrent };
+		}
+
+		return bestMatch.second;
+	}
 } // end of namespace test
 
 #endif
