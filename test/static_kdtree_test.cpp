@@ -1,6 +1,7 @@
 #include <palgo/static_kdtree.hpp>
+#include <palgo/kdtree.hpp> // required to build trees until I fully implement the static_kdtree constructor. ToDo take this out.
 #include "catch.hpp"
-
+#include "common.h"
 
 //
 // Unnamed namespace for things only held in this file
@@ -90,15 +91,35 @@ namespace
 		float z;
 	public:
 		TestDataStructure( float x, float y, float z ) : x(x), y(y), z(z) {}
-		inline float getX() { return x; }
-		inline float getY() { return y; }
-		inline float getZ() { return z; }
+		TestDataStructure() : x(0), y(0), z(0) {}
+		bool operator==( const TestDataStructure& other ) { return x==other.x && y==other.y && z==other.z; }
+		inline float getX() const { return x; }
+		inline float getY() const { return y; }
+		inline float getZ() const { return z; }
+		inline void setX( float newValue ) { x=newValue; }
+		inline void setY( float newValue ) { y=newValue; }
+		inline void setZ( float newValue ) { z=newValue; }
 		static inline float staticGetX( const TestDataStructure& data ) { return data.x; }
 		static inline float staticGetY( const TestDataStructure& data ) { return data.y; }
 		static inline float staticGetZ( const TestDataStructure& data ) { return data.z; }
 	};
 
+	std::ostream& operator<<( std::ostream& output, const TestDataStructure& data )
+	{
+		output << "[" << data.getX() << "," << data.getY() << "," << data.getZ() << "]";
+		return output;
+	}
 } // end of the unnamed namespace
+
+/** @brief Template specialisation of a function in "common.h" to set TestDataStructure instances to random values */
+template<>
+void test::setRandom( TestDataStructure& variable )
+{
+	variable.setX(nextRandomNumber());
+	variable.setY(nextRandomNumber());
+	variable.setZ(nextRandomNumber());
+}
+
 
 
 SCENARIO( "Check that a test_tree works correctly" )
@@ -233,7 +254,6 @@ SCENARIO( "Check that a test_tree works correctly" )
 
 		// Note the function SumOfSquares returns the squared distance. No point in taking the
 		// sqrt if all I care about is the order.
-		CHECK( T_DistanceFunctor::distance(data1,data2)==1 );
 		CHECK( T_DistanceFunctor::distance(TestDataStructure(0,0,0),TestDataStructure(1,0,0))==1 );
 		CHECK( T_DistanceFunctor::distance(TestDataStructure(0,0,0),TestDataStructure(3,4,0))==25 ); // makes a 3-4-5 triangle
 		CHECK( T_DistanceFunctor::distance(TestDataStructure(5,6,7),TestDataStructure(5,9,11))==25 ); // makes a 3-4-5 triangle
@@ -341,4 +361,65 @@ SCENARIO( "Check that a static_kdtree can be traversed properly" )
 			CHECK( iNode==myTree.end() );
 		}
 	}
+}
+
+SCENARIO( "Test the nearest neighbours found are the same as fixed_kdtree" )
+{
+	GIVEN( "A three dimensional fixed_kdtree and some random data queries" )
+	{
+		std::vector<TestDataStructure> data(500);
+		std::vector<TestDataStructure> queries(100);
+		test::fillWithRandoms(data);
+		test::fillWithRandoms(queries);
+
+		// The way fixed_kdtree and static_kdtree specify their partitioner functions
+		// is different, but the result needs to be the same. Until I implement building
+		// static_kdtree properly I need to build first with fixed_kdtree; then take the
+		// sorted data and give it to static_kdtree.
+		typedef palgo::FunctionList< ::XFunctor<TestDataStructure>,::YFunctor<TestDataStructure>,::ZFunctor<TestDataStructure> > T_FunctionList;
+
+		// Until I implement building the tree in the static_kdtree constructor, I'll
+		// use a fixed_kdtree to sort the items into the correct order and re-copy
+		// into the original input vector.
+		// ToDo - take this out when static_kdtree construction fully implemented.
+		std::vector< std::function<float(const TestDataStructure&)> > partitioners;
+		partitioners.push_back( XFunctor<TestDataStructure>::value );
+		partitioners.push_back( YFunctor<TestDataStructure>::value );
+		partitioners.push_back( ZFunctor<TestDataStructure>::value );
+		auto correctTree=palgo::make_fixed_kdtree( data.begin(), data.end(), partitioners );
+		// Re-copy the ordering back to the original input so that I can create the
+		// static_kdtree on top of that.
+		for( size_t index=0; index<data.size(); ++index ) data[index]=correctTree.rawData()[index];
+
+		WHEN( "Running nearest neighbour searches serially" )
+		{
+			// This creates a static_kdtree that uses the treeAccess accessor as the backing store. The
+			// data is already sorted into the correct order by fixed_kdtree (hence the second constructor
+			// argument that tells static_tree it can skip building).
+			palgo::static_kdtree<decltype(data),T_FunctionList> myTree(data,true);
+			std::vector<TestDataStructure> results;
+
+			//test::dumpTree(myTree);
+
+			for( const auto query : queries )
+			{
+				results.push_back( *myTree.nearest_neighbour(query) );
+			}
+
+			//
+			// Check the results
+			//
+			REQUIRE( results.size()==queries.size() );
+			for( size_t index=0; index<queries.size(); ++index )
+			{
+				typedef palgo::static_kdtree<decltype(data),T_FunctionList>::distance_functor distance_functor;
+				TestDataStructure correctAnswer=*correctTree.nearest_neighbour_nonrecursive( queries[index] );
+				INFO( "Query was " << queries[index] << ". Distance for correct answer=" << distance_functor::distance(correctAnswer,queries[index]) << "; for this answer " << distance_functor::distance(results[index],queries[index]) );
+				CHECK( correctAnswer==results[index] );
+				//CHECK( correctAnswer.getX()==results[index].getX() );
+				//CHECK( correctAnswer.getY()==results[index].getY() );
+				//CHECK( correctAnswer.getZ()==results[index].getZ() );
+			}
+		}
+	} // end of "GIVEN three dimensional tree"
 }
