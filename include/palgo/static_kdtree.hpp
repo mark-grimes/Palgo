@@ -139,7 +139,7 @@ namespace palgo
 	struct FunctionList<T,Ts...> : public FunctionList<Ts...>
 	{
 		typedef T func;
-		static constexpr size_t size() { return sizeof...(Ts)+1; }
+		static constexpr size_t size=sizeof...(Ts)+1;
 	};
 
 	//-------------------------------------------
@@ -203,7 +203,7 @@ namespace palgo
 	template <size_t k,class T>
 	struct CyclicList
 	{
-		typedef typename ListCycle<k%T::size(),T>::type type;
+		typedef typename ListCycle<k%T::size,T>::type type;
 	};
 
 	template<size_t index,class T_functionList,class T_element,class T_result>
@@ -242,7 +242,7 @@ namespace palgo
 		static T_result distance( const T_element& element1, const T_element& element2 )
 		{
 			T_result result={};
-			StaticSquareAndSum<T_functionList::size()-1,T_functionList,T_element,T_result>::apply( element1, element2, result );
+			StaticSquareAndSum<T_functionList::size-1,T_functionList,T_element,T_result>::apply( element1, element2, result );
 			return result;
 		}
 	};
