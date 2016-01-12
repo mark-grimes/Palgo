@@ -23,3 +23,22 @@ float test::nextRandomNumber()
 
 	return ::globalRandomGenerator();
 }
+
+bool test::Point3D::operator==( const Point3D& other )
+{
+	return x==other.x && y==other.y && z==other.z;
+}
+
+template<>
+void test::setRandom( test::Point3D& point )
+{
+	point.x=nextRandomNumber();
+	point.y=nextRandomNumber();
+	point.z=nextRandomNumber();
+}
+
+std::ostream& test::operator<<( std::ostream& output, const test::Point3D& point )
+{
+	output << "[" << point.x << "," << point.y << "," << point.z << "]";
+	return output;
+}

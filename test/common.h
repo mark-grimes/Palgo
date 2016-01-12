@@ -92,6 +92,38 @@ namespace test
 
 		return bestMatch.second;
 	}
+
+	template<class T_distanceFunctor,template<class,class...> class T_container,class T_value,class T_args>
+	typename T_container<T_value,T_args>::const_iterator bruteForceNearestNeightbour( const T_container<T_value,T_args>& container, const T_value& query, T_distanceFunctor functor )
+	{
+		typedef T_container<T_value,T_args> container_type;
+		typedef typename T_distanceFunctor::result_type distance_type;
+		typedef typename T_container<T_value,T_args>::const_iterator const_iterator;
+
+		std::pair<distance_type,const_iterator> bestMatch={ std::numeric_limits<distance_type>::max(), container.end() };
+
+		for( typename container_type::const_iterator iCurrent=container.begin(); iCurrent<container.end(); ++iCurrent )
+		{
+			distance_type distance=functor(*iCurrent,query);
+			if( distance < bestMatch.first ) bestMatch={ distance, iCurrent };
+		}
+
+		return bestMatch.second;
+	}
+
+	/** @brief Simple 3D point to use as a test data structure */
+	struct Point3D
+	{
+		float x,y,z;
+		bool operator==( const Point3D& other );
+	};
+
+	/** @brief Template specialisation to set std::pair instances to random values */
+	template<>
+	void setRandom( test::Point3D& point );
+
+	std::ostream& operator<<( std::ostream& output, const test::Point3D& point );
+
 } // end of namespace test
 
 #endif
