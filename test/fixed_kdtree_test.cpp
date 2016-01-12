@@ -701,3 +701,36 @@ SCENARIO( "Check that a kdtree can find batch nearest neighbours correctly" )
 		}
 	}
 }
+
+SCENARIO( "Check that a kdtree can find batch nearest neighbours to random data correctly", "[batch]" )
+{
+	GIVEN( "A tree of (x,y) points filled with random data, and random queries" )
+	{
+		typedef std::vector<test::Point3D> TestData;
+
+		TestData input(10);
+		TestData queries(5);
+		test::fillWithRandoms(input);
+		test::fillWithRandoms(queries);
+
+		std::vector< std::function<float(const TestData::value_type&)> > partitioners;
+		partitioners.push_back( [](const TestData::value_type& point){ return point.x; } );
+		partitioners.push_back( [](const TestData::value_type& point){ return point.y; } );
+		partitioners.push_back( [](const TestData::value_type& point){ return point.z; } );
+
+		auto myTree=palgo::make_fixed_kdtree( input.begin(), input.end(), partitioners );
+
+		test::dumpTree(myTree);
+		WHEN( "Comparing the nearest neighbours found against that found by brute force" )
+		{
+			for( const auto& query : queries )
+			{
+				auto distanceFunction=std::bind(&decltype(myTree)::distance_squared,myTree,std::placeholders::_1,std::placeholders::_2);
+				auto correctAnswer=*test::bruteForceNearestNeightbour( input, query, distanceFunction );
+				auto myAnswer=*myTree.nearest_neighbour_nonrecursive( query );
+				INFO( "Query was " << query << ". Correct distance=" << distanceFunction(correctAnswer,query) << " myAnswer distance=" << distanceFunction(myAnswer,query) );
+				CHECK( correctAnswer==myAnswer );
+			}
+		}
+	}
+}
