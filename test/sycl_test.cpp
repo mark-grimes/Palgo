@@ -11,6 +11,7 @@
 #include <palgo/kdtree.hpp> // Haven't implemented building in static_kdtree yet, so use fixed_kdtree for building only
 #include <palgo/static_kdtree.hpp>
 #include "catch.hpp"
+#include "common.h"
 
 #include <random>
 #include <iostream>
@@ -253,7 +254,8 @@ SCENARIO( "Attempting to use ComputeCpp to run nearest neighbour searches" )
 			size_t correctAnswers=0;
 			for( size_t index=0; index<queries.size(); ++index )
 			{
-				TestData correctAnswer=*myTree.nearest_neighbour_nonrecursive( queries[index] );
+				//TestData correctAnswer=*myTree.nearest_neighbour_nonrecursive( queries[index] );
+				TestData correctAnswer=*test::bruteForceNearestNeightbour<palgo::static_kdtree<decltype(data),T_FunctionList>::distance_functor>( data, queries[index] );
 				CHECK( correctAnswer.x==outputCheck[index].x );
 				CHECK( correctAnswer.y==outputCheck[index].y );
 				CHECK( correctAnswer.z==outputCheck[index].z );
