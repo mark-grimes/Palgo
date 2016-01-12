@@ -413,9 +413,13 @@ SCENARIO( "Test the nearest neighbours found are the same as fixed_kdtree" )
 			for( size_t index=0; index<queries.size(); ++index )
 			{
 				typedef palgo::static_kdtree<decltype(data),T_FunctionList>::distance_functor distance_functor;
-				//TestDataStructure correctAnswer=*correctTree.nearest_neighbour_nonrecursive( queries[index] );
-				TestDataStructure correctAnswer=*test::bruteForceNearestNeightbour<distance_functor>( data, queries[index] );
-				INFO( "Query was " << queries[index] << ". Distance for correct answer=" << distance_functor::distance(correctAnswer,queries[index]) << "; for this answer " << distance_functor::distance(results[index],queries[index]) );
+				TestDataStructure correctAnswer=*correctTree.nearest_neighbour_nonrecursive( queries[index] );
+				//TestDataStructure correctAnswer=*test::bruteForceNearestNeightbour<distance_functor>( data, queries[index] );
+				INFO( "Query was " << queries[index]
+					<< ". Distance for correct answer=" << distance_functor::distance(correctAnswer,queries[index])
+					<< "; for this answer " << distance_functor::distance(results[index],queries[index])
+					<< "; fixed correct distance=" << correctTree.distance_squared(correctAnswer,queries[index])
+					<< "; fixed distance=" << correctTree.distance_squared(results[index],queries[index]) );
 				CHECK( correctAnswer==results[index] );
 				//CHECK( correctAnswer.getX()==results[index].getX() );
 				//CHECK( correctAnswer.getY()==results[index].getY() );
