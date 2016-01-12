@@ -1,5 +1,6 @@
 #include <palgo/kdtree.hpp>
 #include "catch.hpp"
+#include "common.h"
 #include <array>
 
 // TODO remove this include
@@ -84,61 +85,7 @@ namespace
 		printRandomInitialiserList<T>( length, rank, uniform_auto_distribution<T>::defaultLow, uniform_auto_distribution<T>::defaultHigh, std::cout );
 	}
 
-	std::ostream& operator<<( std::ostream& output, const std::pair<float,float>& item )
-	{
-		output << "{" << item.first << "," << item.second << "}";
-		return output;
-	}
-
-	template<class T_iterator>
-	void dumpTreeNode( T_iterator node, size_t level, size_t pairNumber, bool isRightSibling, std::vector< std::vector< std::pair<std::string,std::string> > >& treeLevels )
-	{
-		if( treeLevels.size()<=level )
-		{
-			if( level==0 ) treeLevels.push_back( std::vector< std::pair<std::string,std::string> >(1) );
-			else treeLevels.push_back( std::vector< std::pair<std::string,std::string> >( std::pow(2,level-1) ) );
-		}
-
-		std::stringstream converter;
-		converter << *node;
-
-		if( isRightSibling ) treeLevels[level][pairNumber].second=converter.str();
-		else treeLevels[level][pairNumber].first=converter.str();
-
-		if( node.has_left_child() ) dumpTreeNode( node.left_child(), level+1, pairNumber*2+isRightSibling, false, treeLevels );
-		if( node.has_right_child() ) dumpTreeNode( node.right_child(), level+1, pairNumber*2+isRightSibling, true, treeLevels );
-	}
-
-	template<class T>
-	void dumpTree( const T& tree )
-	{
-		std::vector< std::vector< std::pair<std::string,std::string> > > treeLevels;
-
-		auto iRootNode=tree.root();
-		if( iRootNode!=tree.end() ) dumpTreeNode( iRootNode, 0, 0, false, treeLevels );
-
-//		// The tree is going to be printed out upside down, since it's easier to work out the spacing.
-//		// The last row has no special spacing
-//		for( auto& pair : treeLevels.back() )
-//		{
-//			if( pair.first.empty() ) pair.first="*";
-//			if( pair.second.empty() ) pair.second="*";
-//			std::cout << pair.first << "-" << pair.second << "  ";
-//		}
-//		std::cout << "\n";
-//		// Then every other row takes it's spacing from the one above
-//		for( size_t index=treeLevels.size()-2; index>=0; --index )
-//		{
-//
-//		}
-
-		for( const auto& vector : treeLevels )
-		{
-			for( const auto& pair : vector ) std::cout << pair.first << "-" << pair.second << "  ";
-			std::cout << "\n";
-		}
-	}
-}
+} // end of the unnamed namespace
 
 SCENARIO( "Test that a kdtree can be instantiated" )
 {
