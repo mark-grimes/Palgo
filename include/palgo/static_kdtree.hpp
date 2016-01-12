@@ -63,6 +63,8 @@ namespace
 		}
 	};
 
+	template<size_t level,class T_functionList,class T_iterator>
+	struct TreeBuildHelper;
 
 } // end of the unnamed namespace
 
@@ -310,6 +312,7 @@ namespace palgo
 		{
 			if( presorted ) return; // If the data is already in the correct order, no need to do anything else
 
+			TreeBuildHelper<0,T_functionList,typename T_datastore::const_iterator>::partition( data.begin(), data.end() );
 			// SYCL doesn't allow exceptions, but while I'm testing in host code I'll put this in for now.
 			throw std::logic_error( "Construction of static_kdtrees where the input is not already sorted has not been implemented yet" );
 		}
@@ -427,6 +430,25 @@ namespace
 		static T_iterator traverseUp( const T_value& query, T_iterator& current, T_iterator bestMatch )
 		{
 			return current;
+		}
+	};
+
+	template<size_t level,class T_functionList,class T_iterator>
+	struct TreeBuildHelper
+	{
+		typedef typename palgo::CyclicList<level,T_functionList>::type Partitioner;
+
+		static void partition( const T_iterator& inputBegin, const T_iterator& inputEnd )
+		{
+			if( inputBegin==inputEnd ) return;
+
+			typedef typename T_iterator::value_type value_type;
+			std::sort( inputBegin, inputEnd, [=](const value_type& A,const value_type& B){return Partitioner::value(A)<Partitioner::value(B);} );
+
+			T_iterator nextEnd=inputBegin+std::distance(inputBegin,inputEnd)/2;
+
+			TreeBuildHelper<level+1,T_functionList,T_iterator>::partition( nextEnd+1, inputEnd );
+			TreeBuildHelper<level+1,T_functionList,T_iterator>::partition( inputBegin, nextEnd );
 		}
 	};
 
